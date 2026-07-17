@@ -1,6 +1,7 @@
 pub mod cache;
 pub mod config;
 pub mod manifest;
+pub mod sync_state;
 
 use crate::prelude::{AnyError, StrictPath, app_dir};
 

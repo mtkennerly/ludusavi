@@ -1992,6 +1992,13 @@ impl App {
                             entry.scan_info.only_constructive_backups = value;
                         }
                     }
+                    config::Event::SyncGameEnabled { name, enabled } => {
+                        if enabled {
+                            self.config.sync.enabled_games.insert(name);
+                        } else {
+                            self.config.sync.enabled_games.remove(&name);
+                        }
+                    }
                 }
 
                 self.save_config();

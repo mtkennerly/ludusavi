@@ -99,6 +99,11 @@ pub enum Event {
     CloudPath(String),
     SortCustomGames,
     OnlyConstructiveBackups(bool),
+    /// Toggle a game's sync enabled state.
+    SyncGameEnabled {
+        name: String,
+        enabled: bool,
+    },
 }
 
 /// Settings for `config.yaml`
@@ -118,6 +123,9 @@ pub struct Config {
     pub cloud: Cloud,
     pub apps: Apps,
     pub custom_games: Vec<CustomGame>,
+    /// Per-game sync configuration for cloud sync feature.
+    #[serde(skip_serializing_if = "is_sync_config_default")]
+    pub sync: SyncConfig,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -1176,6 +1184,27 @@ pub struct Cloud {
     /// If true, upload changes automatically after backing up,
     /// as long as there aren't any conflicts.
     pub synchronize: bool,
+}
+
+/// Per-game cloud sync configuration.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct SyncConfig {
+    /// Games enabled for cloud sync (by game name).
+    /// Only games in this set will appear as cards with push/pull buttons.
+    pub enabled_games: std::collections::BTreeSet<String>,
+}
+
+impl Default for SyncConfig {
+    fn default() -> Self {
+        Self {
+            enabled_games: std::collections::BTreeSet::new(),
+        }
+    }
+}
+
+fn is_sync_config_default(sync: &SyncConfig) -> bool {
+    sync.enabled_games.is_empty()
 }
 
 impl Default for Cloud {
@@ -2319,6 +2348,7 @@ mod tests {
                         expanded: false,
                     },
                 ],
+                sync: SyncConfig::default(),
             },
             config,
         );
@@ -2553,6 +2583,7 @@ customGames:
                         expanded: false,
                     },
                 ],
+                sync: SyncConfig::default(),
             })
             .unwrap()
             .trim(),

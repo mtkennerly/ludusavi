@@ -15,6 +15,7 @@ pub mod report;
 pub mod resource;
 pub mod scan;
 pub mod serialization;
+pub mod sync;
 pub mod wrap;
 
 #[cfg(test)]

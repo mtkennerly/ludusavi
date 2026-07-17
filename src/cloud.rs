@@ -676,6 +676,51 @@ impl Rclone {
 
         RcloneProcess::launch(self.app.path.raw().into(), self.args(&args))
     }
+
+    /// Additive copy: copies files from source to destination without deleting
+    /// anything on the destination. Unlike `sync`, this will NOT remove files
+    /// on the remote that aren't in the source. This is the key difference
+    /// that makes per-game cloud sync safe - pushing game A won't delete game B.
+    pub fn copy(
+        &self,
+        local: &StrictPath,
+        remote_path: &str,
+        direction: SyncDirection,
+        finality: Finality,
+        game_dirs: &[String],
+    ) -> Result<RcloneProcess, CommandError> {
+        if direction == SyncDirection::Upload && !local.exists() {
+            _ = local.create_dirs();
+        }
+
+        let mut args = vec![
+            "copy".to_string(),
+            "-v".to_string(),
+            "--use-json-log".to_string(),
+            "--stats=100ms".to_string(),
+        ];
+
+        if finality.preview() {
+            args.push("--dry-run".to_string());
+        }
+
+        for game_dir in game_dirs {
+            args.push(format!("--include=/{game_dir}/**"));
+        }
+
+        match direction {
+            SyncDirection::Upload => {
+                args.push(local.render());
+                args.push(self.path(remote_path));
+            }
+            SyncDirection::Download => {
+                args.push(self.path(remote_path));
+                args.push(local.render());
+            }
+        }
+
+        RcloneProcess::launch(self.app.path.raw().into(), self.args(&args))
+    }
 }
 
 #[cfg(feature = "app")]
