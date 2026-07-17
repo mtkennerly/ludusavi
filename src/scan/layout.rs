@@ -401,7 +401,18 @@ impl IndividualMapping {
         match reversed.get::<str>(drive) {
             Some(mapped) => mapped.to_string(),
             None => {
-                let key = Self::new_drive_folder_name(drive);
+                // The escaped folder name is not injective (e.g. distinct UNC
+                // shares like \\a_b\c and \\a\b_c both escape to the same
+                // string), so disambiguate on collision. Otherwise two drives
+                // share one backup folder and saves from one silently overwrite
+                // the other.
+                let base = Self::new_drive_folder_name(drive);
+                let mut key = base.clone();
+                let mut suffix = 2;
+                while self.drives.get(&key).is_some_and(|existing| existing != drive) {
+                    key = format!("{base}-{suffix}");
+                    suffix += 1;
+                }
                 self.drives.insert(key.to_string(), drive.to_string());
                 key
             }
@@ -2355,6 +2366,27 @@ mod tests {
             assert_eq!("drive-D", mapping.drive_folder_name("D:"));
             assert_eq!("drive-____C", mapping.drive_folder_name(r#"\\?\C:"#));
             assert_eq!("drive-__remote", mapping.drive_folder_name(r#"\\remote"#));
+        }
+
+        #[test]
+        fn distinct_unc_drives_do_not_collide_to_same_folder() {
+            let mut mapping = IndividualMapping::new("foo".to_owned());
+            // Two valid but distinct Windows UNC shares that escape to the same
+            // string: server "a_b" share "c" vs server "a" share "b_c".
+            let folder1 = mapping.drive_folder_name(r#"\\a_b\c"#);
+            let folder2 = mapping.drive_folder_name(r#"\\a\b_c"#);
+
+            // They must map to different backup folders, otherwise saves from
+            // one share silently overwrite saves from the other.
+            assert_ne!(folder1, folder2, "distinct UNC drives collided to folder {folder1}");
+
+            // And both shares must be retained in the drives map, not just the last.
+            assert_eq!(
+                2,
+                mapping.drives.len(),
+                "drives map lost an entry: {:?}",
+                mapping.drives
+            );
         }
     }
 
