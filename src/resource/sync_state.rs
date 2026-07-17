@@ -4,7 +4,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::prelude::StrictPath;
-use whoami;
+
+fn current_device() -> String {
+    whoami::fallible::hostname().unwrap_or_else(|_| "unknown".to_string())
+}
 
 /// Per-game sync metadata stored in settings.config at the backup root.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -37,7 +40,7 @@ impl Default for SyncStateFile {
         Self {
             version: 1,
             last_updated: Utc::now(),
-            device: whoami::fallible::hostname().unwrap_or_else(|_| "unknown".to_string()),
+            device: current_device(),
             games: BTreeMap::new(),
         }
     }
@@ -50,23 +53,25 @@ impl SyncStateFile {
     /// Load from the given directory path (e.g., the backup root).
     pub fn load_from(dir: &StrictPath) -> Self {
         let path = dir.joined(Self::FILE_NAME);
-        if !path.exists() {
-            return Self::default();
-        }
         match path.try_read() {
-            Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+            Ok(content) => serde_json::from_str(&content).unwrap_or_else(|e| {
+                log::warn!("Failed to parse {}: {}, using defaults", Self::FILE_NAME, e);
+                Self::default()
+            }),
             Err(_) => Self::default(),
         }
     }
 
-    /// Save to the given directory path.
+    /// Save to the given directory path using atomic write (write-to-temp + rename).
     pub fn save_to(&self, dir: &StrictPath) -> Result<(), crate::prelude::AnyError> {
         let path = dir.joined(Self::FILE_NAME);
+        let tmp_path = dir.joined(format!("{}.tmp", Self::FILE_NAME));
         if path.create_parent_dir().is_err() {
             log::error!("Failed to create parent dir for sync state file");
         }
         let json = serde_json::to_string_pretty(self)?;
-        path.write_with_content(&json)?;
+        tmp_path.write_with_content(&json)?;
+        tmp_path.move_to(&path)?;
         Ok(())
     }
 
@@ -75,7 +80,7 @@ impl SyncStateFile {
     pub fn merge_game(&mut self, game_name: &str, entry: GameSyncEntry) {
         self.games.insert(game_name.to_string(), entry);
         self.last_updated = Utc::now();
-        self.device = whoami::fallible::hostname().unwrap_or_else(|_| "unknown".to_string());
+        self.device = current_device();
     }
 
     /// Get the sync info for a specific game.
@@ -92,15 +97,25 @@ impl SyncStateFile {
     pub fn remove_game(&mut self, game_name: &str) {
         self.games.remove(game_name);
         self.last_updated = Utc::now();
-        self.device = whoami::fallible::hostname().unwrap_or_else(|_| "unknown".to_string());
+        self.device = current_device();
     }
 
     /// Create a GameSyncEntry for a game push.
-    pub fn create_entry(game_name: &str) -> GameSyncEntry {
+    pub fn push_entry(game_name: &str) -> GameSyncEntry {
         let escaped = crate::scan::layout::escape_folder_name(game_name);
         GameSyncEntry {
             last_push: Utc::now(),
-            device: whoami::fallible::hostname().unwrap_or_else(|_| "unknown".to_string()),
+            device: current_device(),
+            mapping_path: format!("{}/mapping.yaml", escaped),
+        }
+    }
+
+    /// Create a GameSyncEntry for a game pull (records receipt, not push).
+    pub fn pull_entry(game_name: &str) -> GameSyncEntry {
+        let escaped = crate::scan::layout::escape_folder_name(game_name);
+        GameSyncEntry {
+            last_push: Utc::now(),
+            device: format!("{} (pulled)", current_device()),
             mapping_path: format!("{}/mapping.yaml", escaped),
         }
     }

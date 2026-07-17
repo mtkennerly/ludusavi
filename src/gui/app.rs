@@ -1213,6 +1213,7 @@ impl App {
                 Err(e) => {
                     log::error!("Cloud config invalid: {:?}", e);
                     self.sync_screen.active_game = None;
+                    self.sync_screen.active_direction = None;
                     self.sync_screen.syncing_all = false;
                     self.sync_screen.batch_queue.clear();
                     return Task::none();
@@ -1225,7 +1226,11 @@ impl App {
                 Some(d) => d,
                 None => {
                     log::error!("Could not determine game folder for {}", next);
+                    if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == next) {
+                        card.syncing = false;
+                    }
                     self.sync_screen.active_game = None;
+                    self.sync_screen.active_direction = None;
                     return Task::none();
                 }
             };
@@ -1241,7 +1246,17 @@ impl App {
                 Ok(process) => {
                     self.progress.start();
                     if let Some(sender) = self.rclone_monitor_sender.as_mut() {
-                        let _ = sender.try_send(rclone_monitor::Input::Process(process));
+                        if sender.try_send(rclone_monitor::Input::Process(process)).is_err() {
+                            log::error!("Failed to send process to rclone monitor");
+                            if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == next) {
+                                card.syncing = false;
+                            }
+                            self.sync_screen.active_game = None;
+                            self.sync_screen.active_direction = None;
+                            self.sync_screen.syncing_all = false;
+                            self.sync_screen.batch_queue.clear();
+                            self.progress.reset();
+                        }
                     }
                 }
                 Err(e) => {
@@ -1250,6 +1265,7 @@ impl App {
                         card.syncing = false;
                     }
                     self.sync_screen.active_game = None;
+                    self.sync_screen.active_direction = None;
                 }
             }
         } else {
@@ -1258,6 +1274,8 @@ impl App {
             self.sync_screen.syncing_all = false;
             self.sync_screen.active_game = None;
             self.sync_screen.active_direction = None;
+            self.sync_screen.batch_total = 0;
+            self.sync_screen.batch_completed = 0;
             for card in &mut self.game_cards {
                 card.syncing = false;
             }
@@ -2899,16 +2917,25 @@ impl App {
                     rclone_monitor::Event::Succeeded => {
                         // Handle sync operation completion
                         if let Some(game_name) = self.sync_screen.active_game.take() {
-                            log::info!("Sync succeeded for {}", game_name);
+                            let direction = self.sync_screen.active_direction.take();
+                            log::info!("Sync succeeded for {} (direction: {:?})", game_name, direction);
                             self.progress.reset();
                             // Update card state
                             if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == game_name) {
                                 card.syncing = false;
                                 card.sync_state = crate::gui::game_card::SyncState::Synced;
                             }
-                            // Update sync state file
+                            // Update sync state file with correct entry type
                             let mut sync_state = crate::resource::sync_state::SyncStateFile::load_from(&self.config.backup.path);
-                            sync_state.merge_game(&game_name, crate::resource::sync_state::SyncStateFile::create_entry(&game_name));
+                            let entry = match direction {
+                                Some(SyncDirection::Upload) => {
+                                    crate::resource::sync_state::SyncStateFile::push_entry(&game_name)
+                                }
+                                _ => {
+                                    crate::resource::sync_state::SyncStateFile::pull_entry(&game_name)
+                                }
+                            };
+                            sync_state.merge_game(&game_name, entry);
                             if let Err(e) = sync_state.save_to(&self.config.backup.path) {
                                 log::error!("Failed to save sync state: {:?}", e);
                             }
@@ -2935,6 +2962,7 @@ impl App {
                     rclone_monitor::Event::Failed(e) => {
                         // Handle sync operation failure
                         if let Some(game_name) = self.sync_screen.active_game.take() {
+                            self.sync_screen.active_direction = None;
                             log::error!("Sync failed for {}: {:?}", game_name, e);
                             self.progress.reset();
                             if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == game_name) {
@@ -2963,8 +2991,11 @@ impl App {
                         // Handle sync operation cancellation
                         if self.sync_screen.active_game.is_some() {
                             self.sync_screen.active_game = None;
+                            self.sync_screen.active_direction = None;
                             self.sync_screen.syncing_all = false;
                             self.sync_screen.batch_queue.clear();
+                            self.sync_screen.batch_total = 0;
+                            self.sync_screen.batch_completed = 0;
                             self.progress.reset();
                             // Reset syncing state on all cards
                             for card in &mut self.game_cards {
@@ -3102,6 +3133,10 @@ impl App {
                 Task::none()
             }
             Message::PushGame { name } => {
+                // Concurrency guard: reject if already syncing
+                if self.sync_screen.active_game.is_some() {
+                    return Task::none();
+                }
                 log::info!("Pushing game: {}", name);
                 if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
                     card.syncing = true;
@@ -3117,6 +3152,7 @@ impl App {
                             card.syncing = false;
                         }
                         self.sync_screen.active_game = None;
+                        self.sync_screen.active_direction = None;
                         return Task::none();
                     }
                 };
@@ -3131,6 +3167,7 @@ impl App {
                             card.syncing = false;
                         }
                         self.sync_screen.active_game = None;
+                        self.sync_screen.active_direction = None;
                         return Task::none();
                     }
                 };
@@ -3146,7 +3183,15 @@ impl App {
                     Ok(process) => {
                         self.progress.start();
                         if let Some(sender) = self.rclone_monitor_sender.as_mut() {
-                            let _ = sender.try_send(rclone_monitor::Input::Process(process));
+                            if sender.try_send(rclone_monitor::Input::Process(process)).is_err() {
+                                log::error!("Failed to send process to rclone monitor");
+                                if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                                    card.syncing = false;
+                                }
+                                self.sync_screen.active_game = None;
+                                self.sync_screen.active_direction = None;
+                                self.progress.reset();
+                            }
                         }
                         Task::none()
                     }
@@ -3156,11 +3201,16 @@ impl App {
                             card.syncing = false;
                         }
                         self.sync_screen.active_game = None;
+                        self.sync_screen.active_direction = None;
                         Task::none()
                     }
                 }
             }
             Message::PullGame { name } => {
+                // Concurrency guard: reject if already syncing
+                if self.sync_screen.active_game.is_some() {
+                    return Task::none();
+                }
                 log::info!("Pulling game: {}", name);
                 if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
                     card.syncing = true;
@@ -3176,6 +3226,7 @@ impl App {
                             card.syncing = false;
                         }
                         self.sync_screen.active_game = None;
+                        self.sync_screen.active_direction = None;
                         return Task::none();
                     }
                 };
@@ -3190,6 +3241,7 @@ impl App {
                             card.syncing = false;
                         }
                         self.sync_screen.active_game = None;
+                        self.sync_screen.active_direction = None;
                         return Task::none();
                     }
                 };
@@ -3205,7 +3257,15 @@ impl App {
                     Ok(process) => {
                         self.progress.start();
                         if let Some(sender) = self.rclone_monitor_sender.as_mut() {
-                            let _ = sender.try_send(rclone_monitor::Input::Process(process));
+                            if sender.try_send(rclone_monitor::Input::Process(process)).is_err() {
+                                log::error!("Failed to send process to rclone monitor");
+                                if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                                    card.syncing = false;
+                                }
+                                self.sync_screen.active_game = None;
+                                self.sync_screen.active_direction = None;
+                                self.progress.reset();
+                            }
                         }
                         Task::none()
                     }
@@ -3215,11 +3275,16 @@ impl App {
                             card.syncing = false;
                         }
                         self.sync_screen.active_game = None;
+                        self.sync_screen.active_direction = None;
                         Task::none()
                     }
                 }
             }
             Message::SyncAllEnabled => {
+                // Concurrency guard: reject if already syncing
+                if self.sync_screen.syncing_all {
+                    return Task::none();
+                }
                 log::info!("Syncing all enabled games");
                 let enabled: Vec<String> = self.game_cards
                     .iter()
@@ -3233,7 +3298,6 @@ impl App {
                 self.sync_screen.batch_total = enabled.len();
                 self.sync_screen.batch_completed = 0;
                 self.sync_screen.batch_queue = enabled;
-                self.sync_screen.syncing_all = true;
 
                 // Start the first game in the queue
                 if let Some(first) = self.sync_screen.batch_queue.first().cloned() {
@@ -3250,6 +3314,8 @@ impl App {
                             log::error!("Cloud config invalid: {:?}", e);
                             self.sync_screen.syncing_all = false;
                             self.sync_screen.active_game = None;
+                            self.sync_screen.active_direction = None;
+                            self.sync_screen.batch_queue.clear();
                             return Task::none();
                         }
                     };
@@ -3262,6 +3328,8 @@ impl App {
                             log::error!("Could not determine game folder for {}", first);
                             self.sync_screen.syncing_all = false;
                             self.sync_screen.active_game = None;
+                            self.sync_screen.active_direction = None;
+                            self.sync_screen.batch_queue.clear();
                             return Task::none();
                         }
                     };
@@ -3277,7 +3345,17 @@ impl App {
                         Ok(process) => {
                             self.progress.start();
                             if let Some(sender) = self.rclone_monitor_sender.as_mut() {
-                                let _ = sender.try_send(rclone_monitor::Input::Process(process));
+                                if sender.try_send(rclone_monitor::Input::Process(process)).is_err() {
+                                    log::error!("Failed to send process to rclone monitor");
+                                    self.sync_screen.syncing_all = false;
+                                    self.sync_screen.active_game = None;
+                                    self.sync_screen.active_direction = None;
+                                    self.sync_screen.batch_queue.clear();
+                                    self.progress.reset();
+                                    for card in &mut self.game_cards {
+                                        card.syncing = false;
+                                    }
+                                }
                             }
                         }
                         Err(e) => {
@@ -3286,6 +3364,9 @@ impl App {
                                 card.syncing = false;
                             }
                             self.sync_screen.active_game = None;
+                            self.sync_screen.active_direction = None;
+                            self.sync_screen.syncing_all = false;
+                            self.sync_screen.batch_queue.clear();
                         }
                     }
                 }

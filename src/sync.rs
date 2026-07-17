@@ -1,5 +1,7 @@
+use std::time::Duration;
+
 use crate::{
-    cloud::{self, CloudChange, Rclone},
+    cloud::{self, CloudChange, Rclone, RcloneProcessEvent},
     prelude::{Error, Finality, StrictPath, SyncDirection},
     resource::{
         config::Config,
@@ -17,11 +19,90 @@ pub struct SyncResult {
     pub error: Option<Error>,
 }
 
+/// Wait for an rclone process to complete, collecting changes.
+/// Includes a small sleep to avoid CPU spin.
+fn wait_for_rclone(process: &mut crate::cloud::RcloneProcess) -> Result<Vec<CloudChange>, Error> {
+    let mut changes = vec![];
+    loop {
+        let events = process.events();
+        for event in events {
+            match event {
+                RcloneProcessEvent::Progress { .. } => {}
+                RcloneProcessEvent::Change(change) => {
+                    changes.push(change);
+                }
+            }
+        }
+        match process.succeeded() {
+            Some(Ok(_)) => return Ok(changes),
+            Some(Err(e)) => return Err(Error::UnableToSynchronizeCloud(e)),
+            None => {}
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+/// Upload settings.config to the cloud after a push.
+fn upload_sync_state(
+    rclone: &Rclone,
+    backup_dir: &StrictPath,
+    cloud_path: &str,
+    finality: Finality,
+) {
+    if finality.preview() {
+        return;
+    }
+    let mut process = match rclone.copy(
+        backup_dir,
+        cloud_path,
+        SyncDirection::Upload,
+        finality,
+        &["settings.config".to_string()],
+    ) {
+        Ok(p) => p,
+        Err(e) => {
+            log::error!("Failed to start upload of settings.config: {:?}", e);
+            return;
+        }
+    };
+    if let Err(e) = wait_for_rclone(&mut process) {
+        log::error!("Failed to upload settings.config: {:?}", e);
+    }
+}
+
+/// Download settings.config from the cloud before a pull.
+fn download_sync_state(
+    rclone: &Rclone,
+    backup_dir: &StrictPath,
+    cloud_path: &str,
+    finality: Finality,
+) {
+    if finality.preview() {
+        return;
+    }
+    let mut process = match rclone.copy(
+        backup_dir,
+        cloud_path,
+        SyncDirection::Download,
+        finality,
+        &["settings.config".to_string()],
+    ) {
+        Ok(p) => p,
+        Err(e) => {
+            log::error!("Failed to start download of settings.config: {:?}", e);
+            return;
+        }
+    };
+    if let Err(e) = wait_for_rclone(&mut process) {
+        log::error!("Failed to download settings.config: {:?}", e);
+    }
+}
+
 /// High-level push operation for a single game.
 /// 1. Validates cloud config
 /// 2. Locates the game's backup folder
 /// 3. Uploads via rclone copy (additive - no deletes)
-/// 4. Updates settings.config
+/// 4. Uploads settings.config to cloud
 pub fn push_game(
     config: &Config,
     backup_dir: &StrictPath,
@@ -40,36 +121,23 @@ pub fn push_game(
         .ok_or(Error::GameIsUnrecognized)?;
 
     let rclone = Rclone::new(config.apps.rclone.clone(), remote);
+
+    // Upload game files
     let mut process = match rclone.copy(backup_dir, cloud_path, SyncDirection::Upload, finality, &[game_dir_name]) {
         Ok(p) => p,
         Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
     };
 
-    let mut changes = vec![];
-    loop {
-        let events = process.events();
-        for event in events {
-            match event {
-                crate::cloud::RcloneProcessEvent::Progress { .. } => {}
-                crate::cloud::RcloneProcessEvent::Change(change) => {
-                    changes.push(change);
-                }
-            }
-        }
-        match process.succeeded() {
-            Some(Ok(_)) => break,
-            Some(Err(e)) => return Err(Error::UnableToSynchronizeCloud(e)),
-            None => {}
-        }
-    }
+    let changes = wait_for_rclone(&mut process)?;
 
-    // Update settings.config if this was a real push (not preview)
+    // Update local settings.config and upload to cloud
     if !finality.preview() {
         let mut sync_state = SyncStateFile::load_from(backup_dir);
-        sync_state.merge_game(game_name, SyncStateFile::create_entry(game_name));
+        sync_state.merge_game(game_name, SyncStateFile::push_entry(game_name));
         if let Err(e) = sync_state.save_to(backup_dir) {
-            log::error!("Failed to save sync state: {:?}", e);
+            log::error!("Failed to save sync state locally: {:?}", e);
         }
+        upload_sync_state(&rclone, backup_dir, cloud_path, finality);
     }
 
     Ok(SyncResult {
@@ -82,9 +150,9 @@ pub fn push_game(
 
 /// High-level pull operation for a single game.
 /// 1. Validates cloud config
-/// 2. Downloads the game's backup folder via rclone copy (additive)
-/// 3. The local BackupLayout now has both old and new backups
-/// 4. Returns the latest backup info for the game
+/// 2. Downloads settings.config from cloud
+/// 3. Downloads the game's backup folder via rclone copy (additive)
+/// 4. Merges cloud metadata into local state
 pub fn pull_game(
     config: &Config,
     backup_dir: &StrictPath,
@@ -103,39 +171,27 @@ pub fn pull_game(
         .ok_or(Error::GameIsUnrecognized)?;
 
     let rclone = Rclone::new(config.apps.rclone.clone(), remote);
+
+    // Download settings.config from cloud first
+    download_sync_state(&rclone, backup_dir, cloud_path, finality);
+
+    // Download game files
     let mut process = match rclone.copy(backup_dir, cloud_path, SyncDirection::Download, finality, &[game_dir_name]) {
         Ok(p) => p,
         Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
     };
 
-    let mut changes = vec![];
-    loop {
-        let events = process.events();
-        for event in events {
-            match event {
-                crate::cloud::RcloneProcessEvent::Progress { .. } => {}
-                crate::cloud::RcloneProcessEvent::Change(change) => {
-                    changes.push(change);
-                }
-            }
-        }
-        match process.succeeded() {
-            Some(Ok(_)) => break,
-            Some(Err(e)) => return Err(Error::UnableToSynchronizeCloud(e)),
-            None => {}
-        }
-    }
+    let changes = wait_for_rclone(&mut process)?;
 
-    // Read settings.config from cloud (if we downloaded it)
-    // and merge with local state
+    // Merge cloud metadata into local state
     if !finality.preview() {
-        let cloud_sync_state = SyncStateFile::load_from(backup_dir);
-        if cloud_sync_state.has_game(game_name) {
+        let local_state = SyncStateFile::load_from(backup_dir);
+        if let Some(info) = local_state.game_info(game_name).cloned() {
             log::info!(
                 "Cloud has game {} last pushed by {} at {}",
                 game_name,
-                cloud_sync_state.game_info(game_name).unwrap().device,
-                cloud_sync_state.game_info(game_name).unwrap().last_push
+                info.device,
+                info.last_push
             );
         }
     }

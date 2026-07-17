@@ -165,7 +165,9 @@ impl GameCard {
                 .font(crate::gui::font::ICONS)
                 .size(ICON_SIZE)
                 .width(BUTTON_SIZE)
-                .height(BUTTON_SIZE),
+                .height(BUTTON_SIZE)
+                .align_x(iced::alignment::Horizontal::Center)
+                .align_y(iced::alignment::Vertical::Center),
         )
         .on_press_maybe(if self.enabled && !self.syncing {
             Some(Message::PullGame {
@@ -180,7 +182,8 @@ impl GameCard {
         .class(style::Button::Primary);
 
         // Add tooltip
-        Tooltip::new(button, text("Pull from cloud"), Position::Top)
+        Tooltip::new(button, text("Pull from cloud").size(16), Position::Top)
+            .gap(5)
             .class(style::Container::Tooltip)
             .into()
     }
@@ -192,7 +195,9 @@ impl GameCard {
                 .font(crate::gui::font::ICONS)
                 .size(ICON_SIZE)
                 .width(BUTTON_SIZE)
-                .height(BUTTON_SIZE),
+                .height(BUTTON_SIZE)
+                .align_x(iced::alignment::Horizontal::Center)
+                .align_y(iced::alignment::Vertical::Center),
         )
         .on_press_maybe(if self.enabled && !self.syncing {
             Some(Message::PushGame {
@@ -206,7 +211,8 @@ impl GameCard {
         .padding(0)
         .class(style::Button::Primary);
 
-        Tooltip::new(button, text("Push to cloud"), Position::Top)
+        Tooltip::new(button, text("Push to cloud").size(16), Position::Top)
+            .gap(5)
             .class(style::Container::Tooltip)
             .into()
     }
