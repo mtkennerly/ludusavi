@@ -307,6 +307,16 @@ impl CustomGames {
 pub struct Sync {
     /// Whether we're currently syncing all enabled games.
     pub syncing_all: bool,
+    /// The game currently being synced (if any).
+    pub active_game: Option<String>,
+    /// Direction of the active sync.
+    pub active_direction: Option<crate::prelude::SyncDirection>,
+    /// Games queued for batch sync.
+    pub batch_queue: Vec<String>,
+    /// Total games in batch sync.
+    pub batch_total: usize,
+    /// Completed games in batch sync.
+    pub batch_completed: usize,
 }
 
 impl Sync {

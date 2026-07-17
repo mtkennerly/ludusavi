@@ -75,9 +75,16 @@ impl GameCard {
         let enabled = config.sync.enabled_games.contains(game_name);
         let display_name = config.display_name(game_name).to_string();
 
-        let sync_state = match &cloud_info {
-            None => SyncState::NotSynced,
-            Some(_info) => SyncState::Synced,
+        // Check if game has a local backup folder
+        let layout = crate::scan::layout::BackupLayout::new(config.backup.path.clone());
+        let game_folder = layout.game_folder(game_name);
+        let has_local_backup = game_folder.exists();
+
+        let sync_state = match (&cloud_info, has_local_backup) {
+            (None, false) => SyncState::NotSynced,
+            (None, true) => SyncState::LocalOnly,
+            (Some(_), false) => SyncState::CloudNewer,
+            (Some(_), true) => SyncState::Synced,
         };
 
         Self {
@@ -88,7 +95,7 @@ impl GameCard {
             cloud_info,
             sync_state,
             syncing: false,
-            has_local_backup: false,
+            has_local_backup,
         }
     }
 

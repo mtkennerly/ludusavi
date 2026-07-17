@@ -226,11 +226,6 @@ pub enum Message {
     ScanSingleGame {
         name: String,
     },
-    SyncGameComplete {
-        name: String,
-        success: bool,
-    },
-    SyncAllComplete,
 }
 
 impl Message {

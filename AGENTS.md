@@ -37,19 +37,21 @@ Ludusavi is a Rust game save backup tool being modified into a **per-game cloud 
 - [x] **Commit Phase 1**
 
 ### Phase 2: GUI Redesign
-- [ ] Create `src/gui/game_card.rs` - card data model + Steam Deck rendering
-- [ ] Modify `src/gui/icon.rs` - add larger up/down arrow icons for Steam Deck
-- [ ] Modify `src/gui/button.rs` - add push/pull arrow buttons (48x48px min)
-- [ ] Modify `src/gui/screen.rs` - replace Backup/Restore with Sync screen
-- [ ] Modify `src/gui/common.rs` - new Screen, Message, Operation variants
-- [ ] Modify `src/gui/app.rs` - new sync state machine, remove old backup/restore
-- [ ] Modify `src/gui/modal.rs` - add sync confirmation modals
-- [ ] **Commit Phase 2**
+- [x] Create `src/gui/game_card.rs` - card data model + Steam Deck rendering
+- [x] Modify `src/gui/button.rs` - nav button for Sync screen
+- [x] Modify `src/gui/screen.rs` - Sync screen with view()
+- [x] Modify `src/gui/common.rs` - Screen::Sync, sync Message variants
+- [x] Modify `src/gui/app.rs` - game_cards population, sync handlers
+- [x] Modify `src/gui/style.rs` - Container::Card, Container::Badge
+- [x] Modify `src/gui/widget.rs` - SYNC_SCROLL id
+- [x] Modify `src/main.rs` - add sync to use ludusavi import
+- [x] **Commit Phase 2**
 
 ### Phase 3: Integration & Polish
-- [ ] Wire up async progress for rclone operations
-- [ ] Batch sync ("Sync All Enabled") with progress bar
-- [ ] **Commit Phase 3**
+- [x] Wire up async progress for rclone operations (via rclone_monitor subscription)
+- [x] Batch sync ("Sync All Enabled") with progress bar
+- [x] Compute SyncState from local vs cloud comparison (NotSynced, LocalOnly, Synced, CloudNewer)
+- [x] **Commit Phase 3**
 
 ---
 
@@ -72,7 +74,7 @@ Ludusavi is a Rust game save backup tool being modified into a **per-game cloud 
 | `src/cloud.rs` | MODIFY | Add Rclone::copy() method |
 | `src/sync.rs` | NEW | Push/pull/merge logic |
 | `src/lib.rs` | MODIFY | Add pub mod sync |
-| `src/gui/game_card.rs` | NEW | Game card model + rendering |
+| `src/gui/game_card.rs` | NEW | Game card model + Steam Deck rendering |
 | `src/gui/icon.rs` | MODIFY | Add larger arrow icons |
 | `src/gui/button.rs` | MODIFY | Add push/pull buttons |
 | `src/gui/screen.rs` | MODIFY | Replace with Sync screen |

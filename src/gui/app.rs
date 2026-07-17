@@ -1199,6 +1199,72 @@ impl App {
         Task::none()
     }
 
+    fn start_next_batch_sync(&mut self) -> Task<Message> {
+        if let Some(next) = self.sync_screen.batch_queue.first().cloned() {
+            self.sync_screen.batch_queue.remove(0);
+            self.sync_screen.active_game = Some(next.clone());
+            self.sync_screen.active_direction = Some(SyncDirection::Upload);
+            if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == next) {
+                card.syncing = true;
+            }
+
+            let remote = match crate::cloud::validate_cloud_config(&self.config, &self.config.cloud.path) {
+                Ok(r) => r,
+                Err(e) => {
+                    log::error!("Cloud config invalid: {:?}", e);
+                    self.sync_screen.active_game = None;
+                    self.sync_screen.syncing_all = false;
+                    self.sync_screen.batch_queue.clear();
+                    return Task::none();
+                }
+            };
+
+            let layout = BackupLayout::new(self.config.backup.path.clone());
+            let game_folder = layout.game_folder(&next);
+            let game_dir_name = match game_folder.leaf() {
+                Some(d) => d,
+                None => {
+                    log::error!("Could not determine game folder for {}", next);
+                    self.sync_screen.active_game = None;
+                    return Task::none();
+                }
+            };
+
+            let rclone = Rclone::new(self.config.apps.rclone.clone(), remote);
+            match rclone.copy(
+                &self.config.backup.path,
+                &self.config.cloud.path,
+                SyncDirection::Upload,
+                Finality::Final,
+                &[game_dir_name],
+            ) {
+                Ok(process) => {
+                    self.progress.start();
+                    if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                        let _ = sender.try_send(rclone_monitor::Input::Process(process));
+                    }
+                }
+                Err(e) => {
+                    log::error!("Failed to start batch sync for {}: {:?}", next, e);
+                    if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == next) {
+                        card.syncing = false;
+                    }
+                    self.sync_screen.active_game = None;
+                }
+            }
+        } else {
+            // Batch complete
+            log::info!("Batch sync complete");
+            self.sync_screen.syncing_all = false;
+            self.sync_screen.active_game = None;
+            self.sync_screen.active_direction = None;
+            for card in &mut self.game_cards {
+                card.syncing = false;
+            }
+        }
+        Task::none()
+    }
+
     fn make_custom_game(name: String, manifest: &LoadedManifest) -> CustomGame {
         if let Some(standard) = manifest.extended.0.get(&name) {
             CustomGame {
@@ -2819,7 +2885,10 @@ impl App {
                                     self.progress.set(current, max);
                                 }
                                 crate::cloud::RcloneProcessEvent::Change(change) => {
-                                    self.operation.add_cloud_change();
+                                    // Only track cloud_changes for non-sync operations
+                                    if self.sync_screen.active_game.is_none() {
+                                        self.operation.add_cloud_change();
+                                    }
                                     if let Some(modal) = self.modals.last_mut() {
                                         modal.add_cloud_change(change);
                                     }
@@ -2828,6 +2897,29 @@ impl App {
                         }
                     }
                     rclone_monitor::Event::Succeeded => {
+                        // Handle sync operation completion
+                        if let Some(game_name) = self.sync_screen.active_game.take() {
+                            log::info!("Sync succeeded for {}", game_name);
+                            self.progress.reset();
+                            // Update card state
+                            if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == game_name) {
+                                card.syncing = false;
+                                card.sync_state = crate::gui::game_card::SyncState::Synced;
+                            }
+                            // Update sync state file
+                            let mut sync_state = crate::resource::sync_state::SyncStateFile::load_from(&self.config.backup.path);
+                            sync_state.merge_game(&game_name, crate::resource::sync_state::SyncStateFile::create_entry(&game_name));
+                            if let Err(e) = sync_state.save_to(&self.config.backup.path) {
+                                log::error!("Failed to save sync state: {:?}", e);
+                            }
+                            self.sync_screen.batch_completed += 1;
+                            // Start next game in batch if syncing all
+                            if self.sync_screen.syncing_all {
+                                return self.start_next_batch_sync();
+                            }
+                            return Task::none();
+                        }
+
                         if let Some(cmd) = self.transition_from_cloud_step() {
                             return cmd;
                         }
@@ -2841,6 +2933,21 @@ impl App {
                         }
                     }
                     rclone_monitor::Event::Failed(e) => {
+                        // Handle sync operation failure
+                        if let Some(game_name) = self.sync_screen.active_game.take() {
+                            log::error!("Sync failed for {}: {:?}", game_name, e);
+                            self.progress.reset();
+                            if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == game_name) {
+                                card.syncing = false;
+                            }
+                            self.sync_screen.batch_completed += 1;
+                            // Continue with next game in batch
+                            if self.sync_screen.syncing_all {
+                                return self.start_next_batch_sync();
+                            }
+                            return Task::none();
+                        }
+
                         self.operation.push_error(Error::UnableToSynchronizeCloud(e.clone()));
                         if let Some(cmd) = self.transition_from_cloud_step() {
                             return cmd;
@@ -2853,6 +2960,19 @@ impl App {
                         ]);
                     }
                     rclone_monitor::Event::Cancelled => {
+                        // Handle sync operation cancellation
+                        if self.sync_screen.active_game.is_some() {
+                            self.sync_screen.active_game = None;
+                            self.sync_screen.syncing_all = false;
+                            self.sync_screen.batch_queue.clear();
+                            self.progress.reset();
+                            // Reset syncing state on all cards
+                            for card in &mut self.game_cards {
+                                card.syncing = false;
+                            }
+                            return Task::none();
+                        }
+
                         self.go_idle();
                         return self.close_specific_modal(modal::Kind::ConfirmCloudSync);
                     }
@@ -2986,126 +3106,194 @@ impl App {
                 if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
                     card.syncing = true;
                 }
-                let config = self.config.clone();
-                let backup_dir = self.config.backup.path.clone();
-                let cloud_path = self.config.cloud.path.clone();
-                let game_name = name.clone();
+                self.sync_screen.active_game = Some(name.clone());
+                self.sync_screen.active_direction = Some(SyncDirection::Upload);
 
-                Task::future(async move {
-                    let result = crate::sync::push_game(
-                        &config,
-                        &backup_dir,
-                        &cloud_path,
-                        &game_name,
-                        Finality::Final,
-                    );
-                    match result {
-                        Ok(_) => Message::SyncGameComplete {
-                            name: game_name,
-                            success: true,
-                        },
-                        Err(e) => {
-                            log::error!("Push failed for {}: {:?}", game_name, e);
-                            Message::SyncGameComplete {
-                                name: game_name,
-                                success: false,
-                            }
+                let remote = match crate::cloud::validate_cloud_config(&self.config, &self.config.cloud.path) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        log::error!("Cloud config invalid: {:?}", e);
+                        if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                            card.syncing = false;
                         }
+                        self.sync_screen.active_game = None;
+                        return Task::none();
                     }
-                })
+                };
+
+                let layout = BackupLayout::new(self.config.backup.path.clone());
+                let game_folder = layout.game_folder(&name);
+                let game_dir_name = match game_folder.leaf() {
+                    Some(d) => d,
+                    None => {
+                        log::error!("Could not determine game folder for {}", name);
+                        if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                            card.syncing = false;
+                        }
+                        self.sync_screen.active_game = None;
+                        return Task::none();
+                    }
+                };
+
+                let rclone = Rclone::new(self.config.apps.rclone.clone(), remote);
+                match rclone.copy(
+                    &self.config.backup.path,
+                    &self.config.cloud.path,
+                    SyncDirection::Upload,
+                    Finality::Final,
+                    &[game_dir_name],
+                ) {
+                    Ok(process) => {
+                        self.progress.start();
+                        if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                            let _ = sender.try_send(rclone_monitor::Input::Process(process));
+                        }
+                        Task::none()
+                    }
+                    Err(e) => {
+                        log::error!("Failed to start push for {}: {:?}", name, e);
+                        if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                            card.syncing = false;
+                        }
+                        self.sync_screen.active_game = None;
+                        Task::none()
+                    }
+                }
             }
             Message::PullGame { name } => {
                 log::info!("Pulling game: {}", name);
                 if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
                     card.syncing = true;
                 }
-                let config = self.config.clone();
-                let backup_dir = self.config.backup.path.clone();
-                let cloud_path = self.config.cloud.path.clone();
-                let game_name = name.clone();
+                self.sync_screen.active_game = Some(name.clone());
+                self.sync_screen.active_direction = Some(SyncDirection::Download);
 
-                Task::future(async move {
-                    let result = crate::sync::pull_game(
-                        &config,
-                        &backup_dir,
-                        &cloud_path,
-                        &game_name,
-                        Finality::Final,
-                    );
-                    match result {
-                        Ok(_) => Message::SyncGameComplete {
-                            name: game_name,
-                            success: true,
-                        },
-                        Err(e) => {
-                            log::error!("Pull failed for {}: {:?}", game_name, e);
-                            Message::SyncGameComplete {
-                                name: game_name,
-                                success: false,
-                            }
+                let remote = match crate::cloud::validate_cloud_config(&self.config, &self.config.cloud.path) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        log::error!("Cloud config invalid: {:?}", e);
+                        if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                            card.syncing = false;
                         }
+                        self.sync_screen.active_game = None;
+                        return Task::none();
                     }
-                })
+                };
+
+                let layout = BackupLayout::new(self.config.backup.path.clone());
+                let game_folder = layout.game_folder(&name);
+                let game_dir_name = match game_folder.leaf() {
+                    Some(d) => d,
+                    None => {
+                        log::error!("Could not determine game folder for {}", name);
+                        if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                            card.syncing = false;
+                        }
+                        self.sync_screen.active_game = None;
+                        return Task::none();
+                    }
+                };
+
+                let rclone = Rclone::new(self.config.apps.rclone.clone(), remote);
+                match rclone.copy(
+                    &self.config.backup.path,
+                    &self.config.cloud.path,
+                    SyncDirection::Download,
+                    Finality::Final,
+                    &[game_dir_name],
+                ) {
+                    Ok(process) => {
+                        self.progress.start();
+                        if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                            let _ = sender.try_send(rclone_monitor::Input::Process(process));
+                        }
+                        Task::none()
+                    }
+                    Err(e) => {
+                        log::error!("Failed to start pull for {}: {:?}", name, e);
+                        if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                            card.syncing = false;
+                        }
+                        self.sync_screen.active_game = None;
+                        Task::none()
+                    }
+                }
             }
             Message::SyncAllEnabled => {
                 log::info!("Syncing all enabled games");
-                self.sync_screen.syncing_all = true;
                 let enabled: Vec<String> = self.game_cards
                     .iter()
                     .filter(|c| c.enabled && !c.syncing)
                     .map(|c| c.name.clone())
                     .collect();
-                for name in &enabled {
-                    if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == *name) {
-                        card.syncing = true;
-                    }
-                }
                 if enabled.is_empty() {
-                    self.sync_screen.syncing_all = false;
                     return Task::none();
                 }
-                let config = self.config.clone();
-                let backup_dir = self.config.backup.path.clone();
-                let cloud_path = self.config.cloud.path.clone();
-                Task::future(async move {
-                    for game_name in &enabled {
-                        let _ = crate::sync::push_game(
-                            &config, &backup_dir, &cloud_path, game_name, Finality::Final,
-                        );
+                self.sync_screen.syncing_all = true;
+                self.sync_screen.batch_total = enabled.len();
+                self.sync_screen.batch_completed = 0;
+                self.sync_screen.batch_queue = enabled;
+                self.sync_screen.syncing_all = true;
+
+                // Start the first game in the queue
+                if let Some(first) = self.sync_screen.batch_queue.first().cloned() {
+                    self.sync_screen.batch_queue.remove(0);
+                    self.sync_screen.active_game = Some(first.clone());
+                    self.sync_screen.active_direction = Some(SyncDirection::Upload);
+                    if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == first) {
+                        card.syncing = true;
                     }
-                    Message::SyncAllComplete
-                })
+
+                    let remote = match crate::cloud::validate_cloud_config(&self.config, &self.config.cloud.path) {
+                        Ok(r) => r,
+                        Err(e) => {
+                            log::error!("Cloud config invalid: {:?}", e);
+                            self.sync_screen.syncing_all = false;
+                            self.sync_screen.active_game = None;
+                            return Task::none();
+                        }
+                    };
+
+                    let layout = BackupLayout::new(self.config.backup.path.clone());
+                    let game_folder = layout.game_folder(&first);
+                    let game_dir_name = match game_folder.leaf() {
+                        Some(d) => d,
+                        None => {
+                            log::error!("Could not determine game folder for {}", first);
+                            self.sync_screen.syncing_all = false;
+                            self.sync_screen.active_game = None;
+                            return Task::none();
+                        }
+                    };
+
+                    let rclone = Rclone::new(self.config.apps.rclone.clone(), remote);
+                    match rclone.copy(
+                        &self.config.backup.path,
+                        &self.config.cloud.path,
+                        SyncDirection::Upload,
+                        Finality::Final,
+                        &[game_dir_name],
+                    ) {
+                        Ok(process) => {
+                            self.progress.start();
+                            if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                                let _ = sender.try_send(rclone_monitor::Input::Process(process));
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Failed to start batch sync for {}: {:?}", first, e);
+                            if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == first) {
+                                card.syncing = false;
+                            }
+                            self.sync_screen.active_game = None;
+                        }
+                    }
+                }
+                Task::none()
             }
             Message::ScanSingleGame { name } => {
                 log::info!("Scanning single game: {}", name);
                 // TODO: Implement single game scan for sync screen
-                Task::none()
-            }
-            Message::SyncGameComplete { name, success } => {
-                if success {
-                    log::info!("Sync completed for {}", name);
-                    // Update game card state
-                    if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
-                        card.syncing = false;
-                        card.sync_state = crate::gui::game_card::SyncState::Synced;
-                    }
-                } else {
-                    log::error!("Sync failed for {}", name);
-                    if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
-                        card.syncing = false;
-                    }
-                }
-                Task::none()
-            }
-            Message::SyncAllComplete => {
-                log::info!("Batch sync complete");
-                self.sync_screen.syncing_all = false;
-                for card in &mut self.game_cards {
-                    if card.syncing {
-                        card.syncing = false;
-                        card.sync_state = crate::gui::game_card::SyncState::Synced;
-                    }
-                }
                 Task::none()
             }
         }
