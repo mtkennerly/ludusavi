@@ -7,6 +7,22 @@ use crate::{
     scan::ScanChange,
 };
 
+/// Escape rclone filter glob metacharacters so a folder name is matched
+/// literally. Game names can legally contain characters that rclone's filter
+/// syntax treats specially (`[PROTOTYPE]`, `Foo {Bar}`, etc.); without escaping,
+/// the include pattern silently matches nothing and the transfer copies no
+/// files. See https://rclone.org/filtering/
+fn escape_rclone_glob(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    for c in name.chars() {
+        if matches!(c, '*' | '?' | '[' | ']' | '{' | '}' | '\\') {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
+}
+
 pub fn validate_cloud_config(config: &Config, cloud_path: &str) -> Result<Remote, Error> {
     if !config.apps.rclone.is_valid() {
         return Err(Error::RcloneUnavailable);
@@ -705,8 +721,16 @@ impl Rclone {
         }
 
         for game_dir in game_dirs {
-            args.push(format!("--include=/{game_dir}/**"));
+            let escaped = escape_rclone_glob(game_dir);
+            args.push(format!("--include=/{escaped}/**"));
         }
+        // Always carry the per-game sync metadata alongside the transfer so a
+        // push publishes it and a pull retrieves it. This is a file at the
+        // backup root, so it must be matched as a file (no trailing `/**`).
+        args.push(format!(
+            "--include=/{}",
+            crate::resource::sync_state::SyncStateFile::FILE_NAME
+        ));
 
         match direction {
             SyncDirection::Upload => {
@@ -720,6 +744,20 @@ impl Rclone {
         }
 
         RcloneProcess::launch(self.app.path.raw().into(), self.args(&args))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::escape_rclone_glob;
+
+    #[test]
+    fn escapes_glob_metacharacters_in_folder_names() {
+        assert_eq!(escape_rclone_glob("Portal 2"), "Portal 2");
+        assert_eq!(escape_rclone_glob("[PROTOTYPE]"), "\\[PROTOTYPE\\]");
+        assert_eq!(escape_rclone_glob("Foo {Bar}"), "Foo \\{Bar\\}");
+        assert_eq!(escape_rclone_glob("What?"), "What\\?");
+        assert_eq!(escape_rclone_glob("A*B"), "A\\*B");
     }
 }
 

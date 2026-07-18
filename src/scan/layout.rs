@@ -2230,6 +2230,16 @@ impl BackupLayout {
         overall
     }
 
+    /// Whether a game already has a backup folder in this layout.
+    pub fn has_game(&self, name: &str) -> bool {
+        self.games.contains_key(name)
+    }
+
+    /// Names of all games that have a backup folder in this layout.
+    pub fn game_names(&self) -> std::collections::BTreeSet<String> {
+        self.games.keys().cloned().collect()
+    }
+
     pub fn game_layout(&self, name: &str) -> GameLayout {
         let path = self.game_folder(name);
 

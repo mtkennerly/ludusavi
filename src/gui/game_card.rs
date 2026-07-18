@@ -71,14 +71,9 @@ pub struct GameCard {
 
 impl GameCard {
     /// Create a new game card from a game name and config state.
-    pub fn new(game_name: &str, config: &Config, cloud_info: Option<GameSyncEntry>) -> Self {
+    pub fn new(game_name: &str, config: &Config, cloud_info: Option<GameSyncEntry>, has_local_backup: bool) -> Self {
         let enabled = config.sync.enabled_games.contains(game_name);
         let display_name = config.display_name(game_name).to_string();
-
-        // Check if game has a local backup folder
-        let layout = crate::scan::layout::BackupLayout::new(config.backup.path.clone());
-        let game_folder = layout.game_folder(game_name);
-        let has_local_backup = game_folder.exists();
 
         let sync_state = match (&cloud_info, has_local_backup) {
             (None, false) => SyncState::NotSynced,
