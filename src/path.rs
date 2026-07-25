@@ -866,7 +866,7 @@ impl StrictPath {
             Utf8WindowsComponent as WComponent,
         };
 
-        if let Some(component) = TypedPath::derive(&self.raw).components().next() {
+        if let Some(component) = TypedPath::derive(self.raw.trim()).components().next() {
             match component {
                 Component::Windows(WComponent::Prefix(_) | WComponent::RootDir)
                 | Component::Unix(UComponent::RootDir) => {
@@ -1755,6 +1755,26 @@ mod tests {
             assert_eq!("C:/tmp/foo".to_string(), path.display());
             assert_eq!(Ok(r"C:\tmp\foo".to_string()), path.access_windows());
             assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn is_absolute_ignores_surrounding_whitespace() {
+            // Every other method derives its typed path from the trimmed raw
+            // string, so is_absolute must trim too. A leading space should not
+            // make an otherwise absolute path report as relative.
+            assert!(StrictPath::new("/foo/bar").is_absolute());
+            assert!(StrictPath::new(" /foo/bar").is_absolute());
+            assert!(StrictPath::new("C:/foo").is_absolute());
+            assert!(StrictPath::new(" C:/foo").is_absolute());
+            assert!(!StrictPath::new("foo/bar").is_absolute());
+            assert!(!StrictPath::new(" foo/bar").is_absolute());
+
+            // The leading-space path is treated as absolute everywhere else, so
+            // is_absolute has to agree.
+            assert_eq!(
+                Analysis::new(Some(Drive::Root), vec!["foo".to_string(), "bar".to_string()]),
+                StrictPath::new(" /foo/bar").analyze()
+            );
         }
 
         #[test]
