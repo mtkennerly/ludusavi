@@ -44,7 +44,7 @@ pub fn scan(
             if std::env::var(ENV_DEBUG).is_ok() {
                 eprintln!(
                     "Ignoring unrecognized game from Heroic/Legendary: {} (app = {})",
-                    &game.title, &game.app_name
+                    game.title, game.app_name
                 );
             }
             continue;

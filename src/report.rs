@@ -400,7 +400,7 @@ impl Reporter {
 
                 if let Some(dumped_registry) = scan_info.dumped_registry.as_ref().filter(|_| dump_registry) {
                     let label = TRANSLATOR.custom_registry_label();
-                    parts.push(format!("---------- {} ----------", &label));
+                    parts.push(format!("---------- {} ----------", label));
                     parts.push(dumped_registry.serialize(registry::Format::Reg));
                     parts.push("-".repeat(22 + label.len()));
                 }

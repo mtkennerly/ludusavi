@@ -263,7 +263,7 @@ impl Hives {
 
         let Some(hive) = get_hkey_from_name(&hive_name) else {
             log::error!("[{game}] Unable to parse hive name: {:?}", &hive_name);
-            return Err(BackupError::Raw(format!("Unable to parse hive: {}", &hive_name)));
+            return Err(BackupError::Raw(format!("Unable to parse hive: {}", hive_name)));
         };
 
         let subkey = match winreg::RegKey::predef(hive).open_subkey(&key) {

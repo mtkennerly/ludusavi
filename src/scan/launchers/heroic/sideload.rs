@@ -44,7 +44,7 @@ pub fn scan(root: &root::Heroic, title_finder: &TitleFinder) -> HashMap<String, 
             if std::env::var(ENV_DEBUG).is_ok() {
                 eprintln!(
                     "Ignoring unrecognized game from Heroic/sideload: {} (app = {})",
-                    raw_title, &app_id
+                    raw_title, app_id
                 );
             }
             continue;

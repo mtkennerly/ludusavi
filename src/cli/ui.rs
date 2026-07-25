@@ -15,7 +15,7 @@ fn get_separator(gui: bool) -> &'static str {
 fn title(games: &[String]) -> String {
     match games.len() {
         0 => TRANSLATOR.app_name(),
-        1 => format!("{} - {}", TRANSLATOR.app_name(), &games[0]),
+        1 => format!("{} - {}", TRANSLATOR.app_name(), games[0]),
         total => format!("{} - {}: {}", TRANSLATOR.app_name(), TRANSLATOR.total_games(), total),
     }
 }
