@@ -7,9 +7,16 @@ on:
       - '0.*'
   pull_request:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (overrides the git tag)'
+        required: false
 
 permissions:
   contents: write
+
+env:
+  VERSION: ${{ inputs.version != '' && inputs.version || (github.ref_type == 'tag' && github.ref_name || '') }}
 
 jobs:
   appimage:
@@ -18,9 +25,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone upstream source
+      - name: Resolve version
         run: |
-          git clone --depth 1 --branch v0.31.0 https://github.com/mtkennerly/ludusavi.git ludusavi-src
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          fi
+          VERSION=${VERSION#v}
+          echo "Building version $VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: |
@@ -29,10 +41,9 @@ jobs:
 
       - name: Build ludusavi
         run: |
-          cd ludusavi-src
           cargo build --release
-          mkdir -p ../appdir/usr/bin
-          cp target/release/ludusavi ../appdir/usr/bin/ludusavi
+          mkdir -p appdir/usr/bin
+          cp target/release/ludusavi appdir/usr/bin/ludusavi
 
       - name: Create AppDir structure
         run: |
@@ -47,8 +58,8 @@ jobs:
           Type=Application
           Categories=Game;Utility;
           EOF
-          cp ludusavi-src/assets/icon.svg appdir/ludusavi.svg
-          cp ludusavi-src/assets/icon.png appdir/ludusavi.png
+          cp assets/icon.svg appdir/ludusavi.svg
+          cp assets/icon.png appdir/ludusavi.png
 
       - name: Create AppRun
         run: |
@@ -58,6 +69,8 @@ jobs:
           HERE="$(dirname "$(readlink -f "$0")")"
           export PATH="${HERE}/usr/bin:${PATH}"
           export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}"
+          export XDG_DATA_DIRS="${HERE}/usr/share:${XDG_DATA_DIRS}"
+          export APPDIR="${HERE}"
           exec "${HERE}/usr/bin/ludusavi" "$@"
           EOF
           chmod +x appdir/AppRun
@@ -77,63 +90,20 @@ jobs:
           name: ludusavi-appimage
           path: ludusavi-x86_64.AppImage
 
-      - name: Generate release notes
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          echo "# ludusavi $TAG" > release_notes.md
-          echo "" >> release_notes.md
-          echo "Game save backup tool for 19,000+ games." >> release_notes.md
-          echo "" >> release_notes.md
-          echo "## Installation" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### AppImage (Universal)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "chmod +x ludusavi-x86_64.AppImage" >> release_notes.md
-          echo "./ludusavi-x86_64.AppImage" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Debian/Ubuntu" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo dpkg -i ludusavi_*.deb" >> release_notes.md
-          echo "sudo apt-get install -f" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### RPM (Fedora/RHEL/openSUSE)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo rpm -i ludusavi-*.rpm" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Pacman (Arch/Manjaro)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo pacman -U ludusavi-*.pkg.tar.zst" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Tarball" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "tar -xzf ludusavi-*.tar.gz" >> release_notes.md
-          echo '```' >> release_notes.md
-
-      - name: Release AppImage
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ludusavi-x86_64.AppImage
-          body_path: release_notes.md
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   deb:
     name: "Debian Package (amd64)"
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone upstream source
+      - name: Resolve version
         run: |
-          git clone --depth 1 --branch v0.31.0 https://github.com/mtkennerly/ludusavi.git ludusavi-src
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          fi
+          VERSION=${VERSION#v}
+          echo "Building version $VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Install build dependencies
         run: |
@@ -147,15 +117,16 @@ jobs:
 
       - name: Prepare source
         run: |
-          mkdir -p ludusavi-0.31.0/debian
-          cp -r debian/* ludusavi-0.31.0/debian/
-          cd ludusavi-src && git archive HEAD | tar -x -C ../ludusavi-0.31.0
+          mkdir -p ludusavi-${VERSION}/debian
+          cp -r debian/* ludusavi-${VERSION}/debian/
+          git archive HEAD | tar -x -C ludusavi-${VERSION}
+          sed -i "1s/\(.*\)(\([^)]*\))\(.*\)/\1(${VERSION}-1)\3/" ludusavi-${VERSION}/debian/changelog
 
       - name: Build Debian package
         run: |
           # Symlink cargo to /usr/local/bin so debuild-sanitized PATH finds it
           ln -sf "$HOME/.cargo/bin/cargo" /usr/local/bin/cargo
-          cd ludusavi-0.31.0
+          cd ludusavi-${VERSION}
           debuild -us -uc -b
 
       - name: Upload Debian artifact
@@ -164,63 +135,20 @@ jobs:
           name: ludusavi-deb
           path: ludusavi_*.deb
 
-      - name: Generate release notes
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          echo "# ludusavi $TAG" > release_notes.md
-          echo "" >> release_notes.md
-          echo "Game save backup tool for 19,000+ games." >> release_notes.md
-          echo "" >> release_notes.md
-          echo "## Installation" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### AppImage (Universal)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "chmod +x ludusavi-x86_64.AppImage" >> release_notes.md
-          echo "./ludusavi-x86_64.AppImage" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Debian/Ubuntu" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo dpkg -i ludusavi_*.deb" >> release_notes.md
-          echo "sudo apt-get install -f" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### RPM (Fedora/RHEL/openSUSE)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo rpm -i ludusavi-*.rpm" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Pacman (Arch/Manjaro)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo pacman -U ludusavi-*.pkg.tar.zst" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Tarball" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "tar -xzf ludusavi-*.tar.gz" >> release_notes.md
-          echo '```' >> release_notes.md
-
-      - name: Release Debian package
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ludusavi_*.deb
-          body_path: release_notes.md
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   rpm:
     name: "RPM Package (amd64)"
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone upstream source
+      - name: Resolve version
         run: |
-          git clone --depth 1 --branch v0.31.0 https://github.com/mtkennerly/ludusavi.git ludusavi-src
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          fi
+          VERSION=${VERSION#v}
+          echo "Building version $VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Install build dependencies
         run: |
@@ -230,8 +158,8 @@ jobs:
       - name: Prepare RPM source
         run: |
           mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-          cp rpmbuild/SPECS/ludusavi.spec ~/rpmbuild/SPECS/
-          cd ludusavi-src && git archive --prefix=ludusavi-0.31.0/ --format=tar.gz HEAD > ~/rpmbuild/SOURCES/ludusavi-0.31.0.tar.gz
+          sed -E "s/^(Version:).*/\1        ${VERSION}/" rpmbuild/SPECS/ludusavi.spec > ~/rpmbuild/SPECS/ludusavi.spec
+          git archive --prefix=ludusavi-${VERSION}/ --format=tar.gz HEAD > ~/rpmbuild/SOURCES/ludusavi-${VERSION}.tar.gz
 
       - name: Build RPM
         run: |
@@ -247,69 +175,30 @@ jobs:
           name: ludusavi-rpm
           path: ludusavi-*.rpm
 
-      - name: Generate release notes
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          echo "# ludusavi $TAG" > release_notes.md
-          echo "" >> release_notes.md
-          echo "Game save backup tool for 19,000+ games." >> release_notes.md
-          echo "" >> release_notes.md
-          echo "## Installation" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### AppImage (Universal)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "chmod +x ludusavi-x86_64.AppImage" >> release_notes.md
-          echo "./ludusavi-x86_64.AppImage" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Debian/Ubuntu" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo dpkg -i ludusavi_*.deb" >> release_notes.md
-          echo "sudo apt-get install -f" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### RPM (Fedora/RHEL/openSUSE)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo rpm -i ludusavi-*.rpm" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Pacman (Arch/Manjaro)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo pacman -U ludusavi-*.pkg.tar.zst" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Tarball" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "tar -xzf ludusavi-*.tar.gz" >> release_notes.md
-          echo '```' >> release_notes.md
-
-      - name: Release RPM
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ludusavi-*.rpm
-          body_path: release_notes.md
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   pacman:
     name: "Pacman Package (amd64)"
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
+      - name: Resolve version
+        run: |
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          fi
+          VERSION=${VERSION#v}
+          echo "Building version $VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
       - name: Build Pacman package in Arch Linux container
         run: |
-          docker run --rm -v "${{ github.workspace }}":/work archlinux/archlinux:latest bash -c "
+          docker run --rm -v "${{ github.workspace }}":/work -e VERSION="${VERSION}" archlinux/archlinux:latest bash -c "
             pacman -Syu --noconfirm base-devel
             cd /work
             cat > PKGBUILD << 'PKGBUILD_EOF'
             # Maintainer: Matthew T. Kennerly <mtkennerly@gmail.com>
             pkgname=ludusavi
-            pkgver=0.31.0
+            pkgver=\${VERSION}
             pkgrel=1
             pkgdesc=\"Game save backup tool\"
             arch=('x86_64')
@@ -342,63 +231,20 @@ jobs:
           name: ludusavi-pacman
           path: ludusavi-*.pkg.tar.zst
 
-      - name: Generate release notes
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          echo "# ludusavi $TAG" > release_notes.md
-          echo "" >> release_notes.md
-          echo "Game save backup tool for 19,000+ games." >> release_notes.md
-          echo "" >> release_notes.md
-          echo "## Installation" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### AppImage (Universal)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "chmod +x ludusavi-x86_64.AppImage" >> release_notes.md
-          echo "./ludusavi-x86_64.AppImage" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Debian/Ubuntu" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo dpkg -i ludusavi_*.deb" >> release_notes.md
-          echo "sudo apt-get install -f" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### RPM (Fedora/RHEL/openSUSE)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo rpm -i ludusavi-*.rpm" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Pacman (Arch/Manjaro)" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "sudo pacman -U ludusavi-*.pkg.tar.zst" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### Tarball" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "tar -xzf ludusavi-*.tar.gz" >> release_notes.md
-          echo '```' >> release_notes.md
-
-      - name: Release Pacman package
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ludusavi-*.pkg.tar.zst
-          body_path: release_notes.md
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   tarball:
     name: "Tarball (amd64)"
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone upstream source
+      - name: Resolve version
         run: |
-          git clone --depth 1 --branch v0.31.0 https://github.com/mtkennerly/ludusavi.git ludusavi-src
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          fi
+          VERSION=${VERSION#v}
+          echo "Building version $VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Install build dependencies
         run: |
@@ -407,16 +253,15 @@ jobs:
 
       - name: Build ludusavi
         run: |
-          cd ludusavi-src
           cargo build --release
 
       - name: Create tarball
         run: |
-          mkdir -p ludusavi-0.31.0-linux-x86_64/usr/bin
-          cp ludusavi-src/target/release/ludusavi ludusavi-0.31.0-linux-x86_64/usr/bin/ludusavi
-          cp ludusavi-src/LICENSE ludusavi-0.31.0-linux-x86_64/
-          cp ludusavi-src/README.md ludusavi-0.31.0-linux-x86_64/
-          tar -czf ludusavi-0.31.0-linux-x86_64.tar.gz ludusavi-0.31.0-linux-x86_64
+          mkdir -p ludusavi-${VERSION}-linux-x86_64/usr/bin
+          cp target/release/ludusavi ludusavi-${VERSION}-linux-x86_64/usr/bin/ludusavi
+          cp LICENSE ludusavi-${VERSION}-linux-x86_64/
+          cp README.md ludusavi-${VERSION}-linux-x86_64/
+          tar -czf ludusavi-${VERSION}-linux-x86_64.tar.gz ludusavi-${VERSION}-linux-x86_64
 
       - name: Upload tarball artifact
         uses: actions/upload-artifact@v4
@@ -424,8 +269,19 @@ jobs:
           name: ludusavi-tarball
           path: ludusavi-*.tar.gz
 
+  release:
+    name: "Create Release"
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [appimage, deb, rpm, pacman, tarball]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
       - name: Generate release notes
-        if: startsWith(github.ref, 'refs/tags/')
         run: |
           TAG=${GITHUB_REF#refs/tags/}
           echo "# ludusavi $TAG" > release_notes.md
@@ -461,11 +317,10 @@ jobs:
           echo "tar -xzf ludusavi-*.tar.gz" >> release_notes.md
           echo '```' >> release_notes.md
 
-      - name: Release tarball
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: ludusavi-*.tar.gz
+          files: artifacts/*
           body_path: release_notes.md
           draft: false
           prerelease: false
