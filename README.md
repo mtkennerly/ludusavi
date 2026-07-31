@@ -155,3 +155,40 @@ cross-platform and cross-store solution:
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## Installation via Linux Packages
+
+Linux packages are built automatically via GitHub Actions for each release.
+
+### Debian / Ubuntu
+
+```bash
+sudo dpkg -i ludusavi_*.deb
+sudo apt-get install -f
+```
+
+### Fedora / RHEL / openSUSE
+
+```bash
+sudo rpm -i ludusavi-*.rpm
+```
+
+### AppImage (universal)
+
+```bash
+chmod +x ludusavi-x86_64.AppImage
+./ludusavi-x86_64.AppImage
+```
+
+### Arch / Manjaro
+
+```bash
+sudo pacman -U ludusavi-*.pkg.tar.zst
+```
+
+### Tarball (manual)
+
+```bash
+tar -xzf ludusavi-*.tar.gz
+./usr/bin/ludusavi
+```

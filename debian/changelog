@@ -1,0 +1,5 @@
+ludusavi (0.31.0-1) unstable; urgency=medium
+
+  * Initial Debian package release
+
+ -- Matthew T. Kennerly <mtkennerly@gmail.com>  Mon, 29 Jul 2024 00:00:00 +0000

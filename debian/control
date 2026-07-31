@@ -1,0 +1,27 @@
+Source: ludusavi
+Section: games
+Priority: optional
+Maintainer: Matthew T. Kennerly <mtkennerly@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+                libgtk-3-dev,
+                libwebkit2gtk-4.1-dev,
+                libssl-dev,
+                pkg-config,
+                libgdk-pixbuf-2.0-dev,
+                librsvg2-dev,
+                libsoup-3.0-dev,
+                libsqlite3-dev,
+                libssl-dev,
+                pkg-config
+Standards-Version: 4.6.2
+Homepage: https://github.com/mtkennerly/ludusavi
+
+Package: ludusavi
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${misc:Depends}
+Description: Game save backup tool
+ ludusavi is a tool for backing up your PC video game save data.
+ It supports over 19,000 games plus custom entries, and multiple game
+ stores (Steam, GOG, Epic, Heroic, Lutris, etc.).
+ It provides both a graphical interface and command line interface.

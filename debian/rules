@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	rm -f Cargo.lock
+	true
+
+CARGO_DEB := /usr/local/bin/cargo
+CARGO_SYSTEM := /usr/bin/cargo
+
+override_dh_auto_clean:
+	dh_auto_clean
+	$(CARGO_DEB) clean
+
+override_dh_auto_build:
+	$(CARGO_DEB) build --release
+
+override_dh_auto_install:
+	$(CARGO_DEB) build --release
+	mkdir -p $(CURDIR)/debian/ludusavi/usr/bin
+	cp target/release/ludusavi $(CURDIR)/debian/ludusavi/usr/bin/ludusavi
