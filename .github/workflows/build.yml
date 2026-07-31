@@ -204,38 +204,39 @@ jobs:
 
       - name: Build Pacman package in Arch Linux container
         run: |
-          docker run --rm -v "${{ github.workspace }}":/work -e VERSION="${VERSION}" archlinux/archlinux:latest bash -c "
+          docker run --rm -v "${{ github.workspace }}":/work -e VERSION="${VERSION}" archlinux/archlinux:latest bash -c '
+            set -e
             pacman -Syu --noconfirm base-devel
             cd /work
-            cat > PKGBUILD << 'PKGBUILD_EOF'
+            cat > PKGBUILD << PKGBUILD_EOF
             # Maintainer: Matthew T. Kennerly <mtkennerly@gmail.com>
             pkgname=ludusavi
-            pkgver=\${VERSION}
+            pkgver=${VERSION}
             pkgrel=1
-            pkgdesc=\"Game save backup tool\"
+            pkgdesc="Game save backup tool"
             arch=('x86_64')
-            url=\"https://github.com/mtkennerly/ludusavi\"
+            url="https://github.com/mtkennerly/ludusavi"
             license=('MIT')
             depends=('gcc-libs' 'glibc' 'gtk3' 'webkit2gtk' 'sqlite' 'openssl' 'librsvg' 'pango' 'cairo')
             makedepends=('cargo' 'rust')
-            source=(\"https://github.com/mtkennerly/ludusavi/archive/v\${pkgver}.tar.gz\")
+            source=("https://github.com/mtkennerly/ludusavi/archive/v\${pkgver}.tar.gz")
             sha256sums=('SKIP')
 
             build() {
-              cd \"\${srcdir}/\${pkgname}-\${pkgver}\"
+              cd "\${srcdir}/\${pkgname}-\${pkgver}"
               cargo build --release
             }
 
             package() {
-              cd \"\${srcdir}/\${pkgname}-\${pkgver}\"
-              install -Dm755 \"target/release/\${pkgname}\" \"\${pkgdir}/usr/bin/\${pkgname}\"
-              install -Dm644 LICENSE \"\${pkgdir}/usr/share/licenses/\${pkgname}/LICENSE\"
-              install -Dm644 README.md \"\${pkgdir}/usr/share/doc/\${pkgname}/README.md\"
+              cd "\${srcdir}/\${pkgname}-\${pkgver}"
+              install -Dm755 "target/release/\${pkgname}" "\${pkgdir}/usr/bin/\${pkgname}"
+              install -Dm644 LICENSE "\${pkgdir}/usr/share/licenses/\${pkgname}/LICENSE"
+              install -Dm644 README.md "\${pkgdir}/usr/share/doc/\${pkgname}/README.md"
             }
             PKGBUILD_EOF
             chown -R builduser:builduser .
             su builduser -c 'makepkg -f --noconfirm --skippgpcheck'
-          "
+          '
 
       - name: Upload Pacman artifact
         uses: actions/upload-artifact@v4
