@@ -192,50 +192,58 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Clone upstream source
+        run: |
+          git clone https://github.com/mtkennerly/ludusavi.git ludusavi-src
+          git -C ludusavi-src checkout -q "${VERSION}" 2>/dev/null || git -C ludusavi-src checkout -q "v${VERSION}"
+          git -C ludusavi-src archive --prefix=ludusavi-${VERSION}/ --format=tar.gz HEAD > ludusavi-src.tar.gz
 
       - name: Resolve version
         run: |
           if [ -z "$VERSION" ]; then
-            VERSION=$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+            VERSION=$(grep -m1 '^version' ludusavi-src/Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
           fi
           VERSION=${VERSION#v}
           echo "Building version $VERSION"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
+      - name: Prepare PKGBUILD
+        run: |
+          cat > PKGBUILD << PKGBUILD_EOF
+          # Maintainer: TheRealFame <packaging>
+          pkgname=ludusavi
+          pkgver=${VERSION}
+          pkgrel=1
+          pkgdesc="Game save backup tool"
+          arch=('x86_64')
+          url="https://github.com/mtkennerly/ludusavi"
+          license=('MIT')
+          depends=('gcc-libs' 'glibc' 'gtk3' 'webkit2gtk' 'sqlite' 'openssl' 'librsvg' 'pango' 'cairo')
+          makedepends=('cargo' 'rust')
+          source=("ludusavi-src.tar.gz")
+          sha256sums=('SKIP')
+
+          build() {
+            cd "${srcdir}/ludusavi-${pkgver}"
+              cargo build --release
+          }
+
+          package() {
+            cd "${srcdir}/ludusavi-${pkgver}"
+              install -Dm755 "target/release/ludusavi" "${pkgdir}/usr/bin/ludusavi"
+          }
+          PKGBUILD_EOF
+
       - name: Build Pacman package in Arch Linux container
         run: |
-          docker run --rm -v "${{ github.workspace }}":/work -e VERSION="${VERSION}" archlinux/archlinux:latest bash -c '
-            set -e
-            pacman -Syu --noconfirm base-devel
+          docker run --rm -v "${{ github.workspace }}":/work archlinux/archlinux:latest bash -c '
+            set -ex
+            pacman -Syu --noconfirm base-devel sudo rust cargo
+            useradd -m builduser
+            echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
             cd /work
-            cat > PKGBUILD << PKGBUILD_EOF
-            # Maintainer: Matthew T. Kennerly <mtkennerly@gmail.com>
-            pkgname=ludusavi
-            pkgver=${VERSION}
-            pkgrel=1
-            pkgdesc="Game save backup tool"
-            arch=('x86_64')
-            url="https://github.com/mtkennerly/ludusavi"
-            license=('MIT')
-            depends=('gcc-libs' 'glibc' 'gtk3' 'webkit2gtk' 'sqlite' 'openssl' 'librsvg' 'pango' 'cairo')
-            makedepends=('cargo' 'rust')
-            source=("https://github.com/mtkennerly/ludusavi/archive/v\${pkgver}.tar.gz")
-            sha256sums=('SKIP')
-
-            build() {
-              cd "\${srcdir}/\${pkgname}-\${pkgver}"
-              cargo build --release
-            }
-
-            package() {
-              cd "\${srcdir}/\${pkgname}-\${pkgver}"
-              install -Dm755 "target/release/\${pkgname}" "\${pkgdir}/usr/bin/\${pkgname}"
-              install -Dm644 LICENSE "\${pkgdir}/usr/share/licenses/\${pkgname}/LICENSE"
-              install -Dm644 README.md "\${pkgdir}/usr/share/doc/\${pkgname}/README.md"
-            }
-            PKGBUILD_EOF
             chown -R builduser:builduser .
-            su builduser -c 'makepkg -f --noconfirm --skippgpcheck'
+            su builduser -c "makepkg -f --noconfirm --skippgpcheck"
           '
 
       - name: Upload Pacman artifact
