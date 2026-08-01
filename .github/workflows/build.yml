@@ -247,7 +247,7 @@ jobs:
         run: |
           docker run --rm -v "${{ github.workspace }}":/work archlinux/archlinux:latest bash -c '
             set -ex
-            pacman -Syu --noconfirm base-devel sudo rust cargo gtk3 webkit2gtk sqlite openssl librsvg pango cairo
+            pacman -Syu --noconfirm base-devel sudo rust cargo gtk3 sqlite openssl librsvg pango cairo
             useradd -m builduser
             echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
             cd /work
