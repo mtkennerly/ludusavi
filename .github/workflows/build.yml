@@ -252,7 +252,7 @@ jobs:
             echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
             cd /work
             chown -R builduser:builduser .
-            su builduser -c "makepkg -f --noconfirm --skippgpcheck"
+            su builduser -c "makepkg -f --nodeps --noconfirm --skippgpcheck"
           '
 
       - name: Upload Pacman artifact
