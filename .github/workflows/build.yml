@@ -247,7 +247,7 @@ jobs:
         run: |
           docker run --rm -v "${{ github.workspace }}":/work archlinux/archlinux:latest bash -c '
             set -ex
-            pacman -Syu --noconfirm base-devel sudo
+            pacman -Syu --noconfirm base-devel sudo rust cargo
             useradd -m builduser
             echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
             cd /work
