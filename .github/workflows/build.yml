@@ -227,7 +227,7 @@ jobs:
           arch=('x86_64')
           url="https://github.com/mtkennerly/ludusavi"
           license=('MIT')
-          depends=('gcc-libs' 'glibc' 'gtk3' 'webkit2gtk' 'sqlite' 'openssl' 'librsvg' 'pango' 'cairo')
+          depends=('gcc-libs' 'glibc' 'gtk3' 'sqlite' 'openssl' 'librsvg' 'pango' 'cairo')
           makedepends=('cargo' 'rust')
           source=("ludusavi-src.tar.gz")
           sha256sums=('SKIP')
