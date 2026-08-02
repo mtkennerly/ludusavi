@@ -12,6 +12,8 @@
     one could silently overwrite the other. Colliding folder names are now
     disambiguated with a numeric suffix.
     ([Contributed by dkxmercury](https://github.com/mtkennerly/ludusavi/pull/631))
+  * Rclone sync did not work when the `RCLONE_PROGRESS` environment variable was set.
+    ([Contributed by bm1016bm-svg](https://github.com/mtkennerly/ludusavi/pull/635))
 
 ## v0.31.0 (2026-04-04)
 
