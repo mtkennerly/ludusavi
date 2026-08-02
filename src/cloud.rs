@@ -634,24 +634,22 @@ impl Rclone {
         Ok(())
     }
 
-    pub fn sync(
+    fn sync_args(
         &self,
         local: &StrictPath,
         remote_path: &str,
         direction: SyncDirection,
         finality: Finality,
         game_dirs: &[String],
-    ) -> Result<RcloneProcess, CommandError> {
-        if direction == SyncDirection::Upload && !local.exists() {
-            // Rclone will fail with exit code 3 if the local folder does not exist.
-            _ = local.create_dirs();
-        }
-
+    ) -> Vec<String> {
         let mut args = vec![
             "sync".to_string(),
             "-v".to_string(),
             "--use-json-log".to_string(),
             "--stats=100ms".to_string(),
+            // Terminal progress output is incompatible with the JSON log parser.
+            // A command-line value also overrides RCLONE_PROGRESS.
+            "--progress=false".to_string(),
         ];
 
         if finality.preview() {
@@ -674,7 +672,57 @@ impl Rclone {
             }
         }
 
+        args
+    }
+
+    pub fn sync(
+        &self,
+        local: &StrictPath,
+        remote_path: &str,
+        direction: SyncDirection,
+        finality: Finality,
+        game_dirs: &[String],
+    ) -> Result<RcloneProcess, CommandError> {
+        if direction == SyncDirection::Upload && !local.exists() {
+            // Rclone will fail with exit code 3 if the local folder does not exist.
+            _ = local.create_dirs();
+        }
+
+        let args = self.sync_args(local, remote_path, direction, finality, game_dirs);
         RcloneProcess::launch(self.app.path.raw().into(), self.args(&args))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sync_disables_terminal_progress_after_custom_arguments() {
+        let rclone = Rclone::new(
+            App {
+                path: StrictPath::new("rclone".to_string()),
+                arguments: "--progress".to_string(),
+            },
+            Remote::Custom {
+                id: "cloud".to_string(),
+            },
+        );
+
+        let sync_args = rclone.sync_args(
+            &StrictPath::new("local".to_string()),
+            "backups",
+            SyncDirection::Upload,
+            Finality::Final,
+            &[],
+        );
+        let args = rclone.args(&sync_args);
+
+        assert!(args.contains(&"--use-json-log".to_string()));
+        assert!(args.contains(&"--stats=100ms".to_string()));
+        let progress = args.iter().position(|x| x == "--progress").unwrap();
+        let no_progress = args.iter().position(|x| x == "--progress=false").unwrap();
+        assert!(progress < no_progress);
     }
 }
 
