@@ -1187,20 +1187,12 @@ pub struct Cloud {
 }
 
 /// Per-game cloud sync configuration.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct SyncConfig {
     /// Games enabled for cloud sync (by game name).
     /// Only games in this set will appear as cards with push/pull buttons.
     pub enabled_games: std::collections::BTreeSet<String>,
-}
-
-impl Default for SyncConfig {
-    fn default() -> Self {
-        Self {
-            enabled_games: std::collections::BTreeSet::new(),
-        }
-    }
 }
 
 fn is_sync_config_default(sync: &SyncConfig) -> bool {

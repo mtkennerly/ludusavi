@@ -525,6 +525,30 @@ impl Ludusavi {
     pub fn find_title(&self, query: TitleQuery) -> BTreeMap<String, TitleMatch> {
         self.title_finder.find(query)
     }
+
+    /// Push a single game's local backup to the cloud.
+    /// Additive on the destination - never deletes another game's cloud data.
+    pub fn sync_push(&self, game: &str, finality: Finality) -> Result<crate::sync::SyncResult, Error> {
+        let Some(game) = self.title_finder.find_one_by_name(game) else {
+            return Err(Error::GameIsUnrecognized);
+        };
+        crate::sync::push_game(&self.config, &self.config.backup.path, &self.config.cloud.path, &game, finality)
+    }
+
+    /// Pull a single game's backup from the cloud.
+    /// Additive on the destination - never deletes local data for another game.
+    pub fn sync_pull(&self, game: &str, finality: Finality) -> Result<crate::sync::SyncResult, Error> {
+        let Some(game) = self.title_finder.find_one_by_name(game) else {
+            return Err(Error::GameIsUnrecognized);
+        };
+        crate::sync::pull_game(&self.config, &self.config.backup.path, &self.config.cloud.path, &game, finality)
+    }
+
+    /// Get the last-known cloud sync info for a game, from `settings.config`.
+    pub fn sync_status(&self, game: &str) -> Option<crate::resource::sync_state::GameSyncEntry> {
+        let game = self.title_finder.find_one_by_name(game)?;
+        crate::sync::get_game_sync_info(&self.config.backup.path, &game)
+    }
 }
 
 pub mod parameters {

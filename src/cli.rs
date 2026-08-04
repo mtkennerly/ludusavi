@@ -134,6 +134,24 @@ pub fn evaluate_games(
     Ok(valid.into_iter().collect())
 }
 
+/// Resolve a single user-provided game name (fuzzy/case-insensitive) to its canonical title.
+/// Used by `sync push`/`sync pull`/`sync status`, which operate on exactly one game.
+fn resolve_single_game(config: &Config, cache: &mut Cache, game: String, api: bool) -> Result<String, Error> {
+    let layout = BackupLayout::new(config.restore.path.clone());
+    let manifest = load_manifest(config, cache, true, false).unwrap_or_default();
+    let title_finder = TitleFinder::new(config, &manifest, layout.restorable_game_set());
+
+    match evaluate_games(BTreeSet::new(), vec![game], &title_finder) {
+        Ok(games) => Ok(games.into_iter().next().expect("evaluate_games returned no games for a single request")),
+        Err(games) => {
+            let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
+            reporter.trip_unknown_games(games.clone());
+            reporter.print_failure();
+            Err(Error::CliUnrecognizedGames { games })
+        }
+    }
+}
+
 pub fn parse() -> Result<Cli, clap::Error> {
     use clap::Parser;
     Cli::try_parse()
@@ -1062,6 +1080,67 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 report_cloud_changes(&changes, api);
             }
         },
+        Subcommand::Sync { sub: sync_sub } => match sync_sub {
+            parse::SyncSubcommand::Push {
+                game,
+                force,
+                preview,
+                api,
+                gui,
+            } => {
+                let finality = if preview { Finality::Preview } else { Finality::Final };
+                let game = resolve_single_game(&config, &mut cache, game, api)?;
+
+                if !ui::confirm(
+                    &[game.clone()],
+                    gui,
+                    force,
+                    finality.preview(),
+                    "Push this game's local backup to the cloud? This is additive and will not delete anything on the cloud.",
+                )? {
+                    return Ok(());
+                }
+
+                let result = crate::sync::push_game(&config, &config.backup.path, &config.cloud.path, &game, finality)?;
+                report_cloud_changes(&result.changes, api);
+            }
+            parse::SyncSubcommand::Pull {
+                game,
+                force,
+                preview,
+                api,
+                gui,
+            } => {
+                let finality = if preview { Finality::Preview } else { Finality::Final };
+                let game = resolve_single_game(&config, &mut cache, game, api)?;
+
+                if !ui::confirm(
+                    &[game.clone()],
+                    gui,
+                    force,
+                    finality.preview(),
+                    "Pull this game's backup from the cloud? This is additive and will not delete anything locally.",
+                )? {
+                    return Ok(());
+                }
+
+                let result = crate::sync::pull_game(&config, &config.backup.path, &config.cloud.path, &game, finality)?;
+                report_cloud_changes(&result.changes, api);
+            }
+            parse::SyncSubcommand::Status { game, api } => {
+                let game = resolve_single_game(&config, &mut cache, game, api)?;
+                let info = crate::sync::get_game_sync_info(&config.backup.path, &game);
+
+                if api {
+                    println!("{}", serde_json::to_string_pretty(&info).unwrap());
+                } else {
+                    match info {
+                        Some(info) => println!("{game}: last pushed {} from {}", info.last_push, info.device),
+                        None => println!("{game}: no cloud sync record"),
+                    }
+                }
+            }
+        },
         Subcommand::Wrap {
             name_source,
             force,
@@ -1317,9 +1396,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 parse::SerializationFormat::Yaml => serde_yaml::to_string(&schema).unwrap(),
             };
             println!("{serialized}");
-        }
-        Subcommand::Gui { .. } => {
-            unreachable!("`gui` command must be handled in main");
         }
     }
     if failed { Err(Error::SomeEntriesFailed) } else { Ok(()) }

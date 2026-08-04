@@ -20,8 +20,6 @@ app = [
     "dep:clap_complete",
     "dep:dialoguer",
     "dep:flexi_logger",
-    "dep:iced",
-    "dep:image",
     "dep:indicatif",
     "dep:rfd",
     "dep:signal-hook",
@@ -41,8 +39,6 @@ fluent = "0.16.1"
 fuzzy-matcher = "0.3.7"
 globetter = "0.2.0"
 globset = "0.4.15"
-iced = { version = "0.14.0", features = ["advanced", "advanced-shaping", "crisp", "image", "lazy", "svg", "tiny-skia", "tokio", "wayland", "wgpu", "x11"], default-features = false, optional = true }
-image = { version = "0.25.2", features = ["ico"], default-features = false, optional = true }
 indicatif = { version = "0.17.8", features = ["rayon"], optional = true }
 intl-memoizer = "0.5.2"
 itertools = "0.13.0"

@@ -433,6 +433,13 @@ pub enum Subcommand {
         #[clap(subcommand)]
         sub: CloudSubcommand,
     },
+    /// Push or pull a single game's backup to/from the cloud.
+    /// Unlike `cloud upload`/`cloud download`, this is additive on the destination
+    /// (never deletes other games' cloud data) and tracks per-game metadata in `settings.config`.
+    Sync {
+        #[clap(subcommand)]
+        sub: SyncSubcommand,
+    },
     /// Wrap restore/backup around game execution
     Wrap {
         #[clap(flatten)]
@@ -554,14 +561,6 @@ pub enum Subcommand {
         #[clap(subcommand)]
         kind: SchemaSubcommand,
     },
-    /// Open the GUI.
-    Gui {
-        /// Open the custom game screen,
-        /// then either create a new entry with this name
-        /// or scroll to an existing entry.
-        #[clap(long)]
-        custom_game: Option<String>,
-    },
 }
 
 impl Subcommand {
@@ -575,10 +574,10 @@ impl Subcommand {
             Self::Manifest { .. } => false,
             Self::Config { .. } => false,
             Self::Cloud { sub } => sub.force(),
+            Self::Sync { sub } => sub.force(),
             Self::Wrap { force, .. } => *force,
             Self::Api { .. } => false,
             Self::Schema { .. } => false,
-            Self::Gui { .. } => false,
         }
     }
 
@@ -592,10 +591,10 @@ impl Subcommand {
             Self::Manifest { .. } => false,
             Self::Config { .. } => false,
             Self::Cloud { sub } => sub.gui(),
+            Self::Sync { sub } => sub.gui(),
             Self::Wrap { gui, .. } => *gui,
             Self::Api { .. } => false,
             Self::Schema { .. } => false,
-            Self::Gui { .. } => true,
         }
     }
 }
@@ -757,6 +756,85 @@ impl CloudSubcommand {
             Self::Set { .. } => false,
             Self::Upload { gui, .. } => *gui,
             Self::Download { gui, .. } => *gui,
+        }
+    }
+}
+
+#[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
+pub enum SyncSubcommand {
+    /// Push a single game's local backup to the cloud (additive - never deletes other games).
+    Push {
+        /// Name of the game to push, as recognized by Ludusavi.
+        #[clap()]
+        game: String,
+
+        /// Don't ask for confirmation.
+        #[clap(long)]
+        force: bool,
+
+        /// Check what would change, but don't actually apply the changes.
+        #[clap(long)]
+        preview: bool,
+
+        /// Print information to stdout in machine-readable JSON.
+        /// This replaces the default, human-readable output.
+        #[clap(long)]
+        api: bool,
+
+        /// Use GUI dialogs for prompts and some information.
+        #[clap(long)]
+        gui: bool,
+    },
+    /// Pull a single game's backup from the cloud (additive - never deletes other games).
+    Pull {
+        /// Name of the game to pull, as recognized by Ludusavi.
+        #[clap()]
+        game: String,
+
+        /// Don't ask for confirmation.
+        #[clap(long)]
+        force: bool,
+
+        /// Check what would change, but don't actually apply the changes.
+        #[clap(long)]
+        preview: bool,
+
+        /// Print information to stdout in machine-readable JSON.
+        /// This replaces the default, human-readable output.
+        #[clap(long)]
+        api: bool,
+
+        /// Use GUI dialogs for prompts and some information.
+        #[clap(long)]
+        gui: bool,
+    },
+    /// Show the last-known cloud sync info for a game (from `settings.config`).
+    Status {
+        /// Name of the game to check, as recognized by Ludusavi.
+        #[clap()]
+        game: String,
+
+        /// Print information to stdout in machine-readable JSON.
+        /// This replaces the default, human-readable output.
+        #[clap(long)]
+        api: bool,
+    },
+}
+
+impl SyncSubcommand {
+    pub fn force(&self) -> bool {
+        match self {
+            Self::Push { force, .. } => *force,
+            Self::Pull { force, .. } => *force,
+            Self::Status { .. } => false,
+        }
+    }
+
+    pub fn gui(&self) -> bool {
+        match self {
+            Self::Push { gui, .. } => *gui,
+            Self::Pull { gui, .. } => *gui,
+            Self::Status { .. } => false,
         }
     }
 }
@@ -1518,33 +1596,4 @@ mod tests {
         );
     }
 
-    #[test]
-    fn accepts_cli_gui_with_minimal_arguments() {
-        check_args(
-            &["ludusavi", "gui"],
-            Cli {
-                config: None,
-                no_manifest_update: false,
-                try_manifest_update: false,
-                debug: false,
-                sub: Some(Subcommand::Gui { custom_game: None }),
-            },
-        );
-    }
-
-    #[test]
-    fn accepts_cli_gui_with_all_arguments() {
-        check_args(
-            &["ludusavi", "gui", "--custom-game", "foo"],
-            Cli {
-                config: None,
-                no_manifest_update: false,
-                try_manifest_update: false,
-                debug: false,
-                sub: Some(Subcommand::Gui {
-                    custom_game: Some("foo".to_string()),
-                }),
-            },
-        );
-    }
 }
