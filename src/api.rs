@@ -3,12 +3,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
-    cloud::{CloudChange, Rclone},
-    prelude::{Error, app_dir},
+    cloud::{CloudChange, Rclone, Remote},
+    prelude::{Cancel, Error, app_dir},
     report,
+    resource::{SaveableResourceFile, sync_state::SyncStateFile},
     scan::{
         BackupId, DuplicateDetector, Launchers, OperationStepDecision, ScanKind, SteamShortcuts, TitleFinder,
-        TitleMatch, layout::BackupLayout, prepare_backup_target, scan_game_for_backup, semantic,
+        TitleMatch,
+        layout::{BackupLayout, BackupSemantics},
+        prepare_backup_target, scan_game_for_backup, semantic,
     },
 };
 
@@ -125,6 +128,7 @@ impl Ludusavi {
             wine_prefix,
             include_disabled,
             skip_downgrade,
+            cancel,
         }: parameters::BackUp,
     ) -> Result<ApiOutput, Error> {
         let mut reporter = report::Reporter::json();
@@ -192,11 +196,22 @@ impl Ludusavi {
             }
         }
 
+        let sync_state = SyncStateFile::load_from(&backup_dir);
+        let wine_env = semantic::WineEnvironment {
+            config: &self.config,
+            manifest: &self.manifest,
+            roots: &roots,
+            steam_shortcuts: &self.steam_shortcuts,
+            launchers: Some(&launchers),
+            cli_prefix: wine_prefix.as_ref(),
+            registry: Some(&sync_state),
+        };
+
         let step = |i, name| {
             log::trace!("step {i} / {}: {name}", games.len());
             let game = &self.manifest.0[name];
 
-            let wine_ctx = semantic::Wine::for_game(name, &self.config);
+            let wine_ctx = semantic::Wine::for_game(name, &wine_env);
             let previous = self.layout.latest_backup(
                 name,
                 ScanKind::Backup,
@@ -267,9 +282,22 @@ impl Ludusavi {
         let info: Vec<_> = games
             .par_iter()
             .enumerate()
-            .filter_map(|(i, name)| step(i, name))
+            .filter_map(|(i, name)| {
+                // Cooperative cancellation: once flagged, stop scheduling further
+                // per-game work. In-flight steps finish, then the scan unwinds.
+                if cancel.as_ref().is_some_and(|c| c.is_cancelled()) {
+                    None
+                } else {
+                    step(i, name)
+                }
+            })
             .collect();
         log::info!("completed backup");
+
+        if cancel.as_ref().is_some_and(|c| c.is_cancelled()) {
+            log::info!("backup cancelled by request");
+            return Ok(reporter.json_output().unwrap_or_default());
+        }
 
         if should_sync_cloud_after {
             let changed_games: Vec<_> = info
@@ -369,14 +397,60 @@ impl Ludusavi {
             }
         }
 
+        // Restore needs to know where this machine's Wine prefixes are, which backup
+        // never had to ask about. Scanning roots is only worth it when remapping is on.
+        let roots = if self.config.scan.redirect_wine {
+            self.config.expanded_roots()
+        } else {
+            vec![]
+        };
+        let sync_state = SyncStateFile::load_from(&self.config.backup.path);
+        let wine_env = semantic::WineEnvironment {
+            config: &self.config,
+            manifest: &self.manifest,
+            roots: &roots,
+            steam_shortcuts: &self.steam_shortcuts,
+            launchers: None,
+            cli_prefix: None,
+            registry: Some(&sync_state),
+        };
+
         let step = |i, name| {
             log::trace!("step {i} / {}: {name}", games.len());
             let mut layout = self.layout.game_layout(name);
+            let id = backup_id.as_ref().unwrap_or(&BackupId::Latest);
 
-            let wine_ctx = semantic::Wine::for_game(name, &self.config);
+            let wine_ctx = semantic::Wine::for_game(name, &wine_env);
+
+            // Refuse rather than silently write to the source device's literal path
+            // (e.g. `/home/deck/...` on a PC): the backup demonstrably needs a Wine
+            // prefix, and this machine doesn't have one for it.
+            if let Some((full, diff)) = layout.find_by_id(id) {
+                let backup_semantics = BackupSemantics::merged(&full.semantics, diff.map(|d| &d.semantics));
+                if let Some(backup_prefix) = backup_semantics.wine_prefixes().into_iter().next()
+                    && wine_ctx.as_ref().is_none_or(|w| w.prefixes.is_empty())
+                {
+                    log::error!("[{name}] no local Wine prefix found; backup recorded {backup_prefix}");
+                    let display_title = self.config.display_name(name);
+                    return Some((
+                        display_title,
+                        crate::scan::ScanInfo {
+                            game_name: name.to_string(),
+                            ..Default::default()
+                        },
+                        Default::default(),
+                        OperationStepDecision::Ignored,
+                        Some(Error::WinePrefixNotFound {
+                            game: name.to_string(),
+                            backup_prefix,
+                        }),
+                    ));
+                }
+            }
+
             let scan_info = layout.scan_for_restoration(
                 name,
-                backup_id.as_ref().unwrap_or(&BackupId::Latest),
+                id,
                 &self.config.redirects,
                 self.config.restore.reverse_redirects,
                 &self.config.restore.toggled_paths,
@@ -526,13 +600,59 @@ impl Ludusavi {
         self.title_finder.find(query)
     }
 
+    /// Case-insensitive substring search over every game Ludusavi recognizes (primary
+    /// manifest/custom-game titles, not aliases), for a game-picker search box.
+    /// Capped at `limit` results; empty query matches everything up to that cap.
+    pub fn search_games(&self, query: &str, limit: usize) -> Vec<String> {
+        let query = query.to_lowercase();
+        let mut matches: Vec<String> = self
+            .manifest
+            .primary_titles()
+            .into_iter()
+            .filter(|name| query.is_empty() || name.to_lowercase().contains(&query))
+            .collect();
+        matches.truncate(limit);
+        matches
+    }
+
+    /// Enable or disable a game for cloud sync (`config.yaml`'s `sync.enabled_games`).
+    pub fn set_game_enabled(&mut self, game: &str, enabled: bool) {
+        if enabled {
+            self.config.sync.enabled_games.insert(game.to_string());
+        } else {
+            self.config.sync.enabled_games.remove(game);
+        }
+        self.config.save();
+    }
+
+    /// Games found by a recent full scan (`config.yaml`'s `sync.discovered_games`).
+    /// Persisted so a restart doesn't require re-scanning.
+    pub fn discovered_games(&self) -> Vec<String> {
+        self.config.sync.discovered_games.iter().cloned().collect()
+    }
+
+    /// Replace the persisted set of scan-discovered games.
+    ///
+    /// A successful full-library scan is authoritative for what's installed right now,
+    /// so this replaces rather than unions - uninstalled games get pruned naturally.
+    pub fn set_discovered_games(&mut self, names: impl IntoIterator<Item = String>) {
+        self.config.sync.discovered_games = names.into_iter().collect();
+        self.config.save();
+    }
+
     /// Push a single game's local backup to the cloud.
     /// Additive on the destination - never deletes another game's cloud data.
     pub fn sync_push(&self, game: &str, finality: Finality) -> Result<crate::sync::SyncResult, Error> {
         let Some(game) = self.title_finder.find_one_by_name(game) else {
             return Err(Error::GameIsUnrecognized);
         };
-        crate::sync::push_game(&self.config, &self.config.backup.path, &self.config.cloud.path, &game, finality)
+        crate::sync::push_game(
+            &self.config,
+            &self.config.backup.path,
+            &self.config.cloud.path,
+            &game,
+            finality,
+        )
     }
 
     /// Pull a single game's backup from the cloud.
@@ -541,7 +661,13 @@ impl Ludusavi {
         let Some(game) = self.title_finder.find_one_by_name(game) else {
             return Err(Error::GameIsUnrecognized);
         };
-        crate::sync::pull_game(&self.config, &self.config.backup.path, &self.config.cloud.path, &game, finality)
+        crate::sync::pull_game(
+            &self.config,
+            &self.config.backup.path,
+            &self.config.cloud.path,
+            &game,
+            finality,
+        )
     }
 
     /// Get the last-known cloud sync info for a game, from `settings.config`.
@@ -549,6 +675,139 @@ impl Ludusavi {
         let game = self.title_finder.find_one_by_name(game)?;
         crate::sync::get_game_sync_info(&self.config.backup.path, &game)
     }
+
+    /// Local Wine/Proton prefixes found for a game on this machine, best first.
+    /// Empty on Windows, when `scan.redirect_wine` is off, or when the game isn't Wine/Proton.
+    pub fn wine_prefixes_for(&self, game: &str) -> Vec<String> {
+        let Some(game) = self.title_finder.find_one_by_name(game) else {
+            return vec![];
+        };
+        if !self.config.scan.redirect_wine {
+            return vec![];
+        }
+
+        let roots = self.config.expanded_roots();
+        let sync_state = SyncStateFile::load_from(&self.config.backup.path);
+        let wine_env = semantic::WineEnvironment {
+            config: &self.config,
+            manifest: &self.manifest,
+            roots: &roots,
+            steam_shortcuts: &self.steam_shortcuts,
+            launchers: None,
+            cli_prefix: None,
+            registry: Some(&sync_state),
+        };
+        wine_env
+            .prefixes_for_game(&game)
+            .into_iter()
+            .map(|p| p.path.render())
+            .collect()
+    }
+
+    /// Wine/Proton prefixes recorded in a game's latest backup.
+    ///
+    /// Non-empty here with [`Self::wine_prefixes_for`] empty means a restore of this
+    /// game will fail (or, with `scan.redirect_wine` off, silently write to a foreign
+    /// path) - useful for a UI to warn about before the user tries.
+    pub fn backup_wine_prefixes(&self, game: &str) -> Vec<String> {
+        let Some(game) = self.title_finder.find_one_by_name(game) else {
+            return vec![];
+        };
+        let layout = self.layout.game_layout(&game);
+        match layout.find_by_id(&BackupId::Latest) {
+            Some((full, diff)) => BackupSemantics::merged(&full.semantics, diff.map(|d| &d.semantics)).wine_prefixes(),
+            None => vec![],
+        }
+    }
+
+    /// The full device -> prefix registry for a game, from `settings.config`.
+    /// Lets a UI show e.g. "Deck: .../4110821628/pfx, PC: .../2811670038/pfx".
+    pub fn registered_prefixes(&self, game: &str) -> BTreeMap<String, String> {
+        let Some(game) = self.title_finder.find_one_by_name(game) else {
+            return BTreeMap::new();
+        };
+        let sync_state = SyncStateFile::load_from(&self.config.backup.path);
+        sync_state
+            .games
+            .get(&game)
+            .map(|entry| entry.prefixes.clone())
+            .unwrap_or_default()
+    }
+
+    /// Current cloud configuration, for a settings UI to display.
+    pub fn cloud_status(&self) -> CloudStatus {
+        CloudStatus {
+            connected: self.config.cloud.remote.is_some(),
+            remote_kind: self.config.cloud.remote.as_ref().map(|r| r.slug().to_string()),
+            path: self.config.cloud.path.clone(),
+            synchronize: self.config.cloud.synchronize,
+            rclone_path: self.config.apps.rclone.path.render(),
+            rclone_valid: self.config.apps.rclone.is_valid(),
+        }
+    }
+
+    /// Configure Google Drive as the cloud remote.
+    ///
+    /// This runs `rclone config create`, which for Google Drive drives rclone's own OAuth
+    /// flow (it opens a browser and waits for the user to approve access). That's a
+    /// blocking, possibly slow, network+UI operation - call this from a background
+    /// thread, not directly on a UI event loop.
+    pub fn set_cloud_remote_google_drive(&mut self) -> Result<(), Error> {
+        self.configure_cloud(Remote::GoogleDrive {
+            id: Remote::generate_id(),
+        })
+    }
+
+    /// Remove the configured cloud remote, both from `rclone`'s own config and here.
+    pub fn disconnect_cloud_remote(&mut self) -> Result<(), Error> {
+        if let Some(old) = self.config.cloud.remote.take() {
+            let _ = Rclone::new(self.config.apps.rclone.clone(), old).unconfigure_remote();
+            self.config.save();
+        }
+        Ok(())
+    }
+
+    /// The cloud-side folder to sync into (sibling to the local backup root's contents).
+    pub fn set_cloud_path(&mut self, path: String) {
+        self.config.cloud.path = path;
+        self.config.save();
+    }
+
+    /// Whether to auto-upload after every backup (upstream's bulk-sync feature). Separate
+    /// from the fork's own `sync_push`/`sync_pull`, which are per-game and manual.
+    pub fn set_cloud_synchronize(&mut self, enabled: bool) {
+        self.config.cloud.synchronize = enabled;
+        self.config.save();
+    }
+
+    /// Swap in a new remote, tearing down the old one first. Shared by every
+    /// `set_cloud_remote_*` method; mirrors `cli.rs`'s `configure_cloud`.
+    fn configure_cloud(&mut self, remote: Remote) -> Result<(), Error> {
+        if let Some(old_remote) = self.config.cloud.remote.as_ref() {
+            let _ = Rclone::new(self.config.apps.rclone.clone(), old_remote.clone()).unconfigure_remote();
+        }
+
+        Rclone::new(self.config.apps.rclone.clone(), remote.clone())
+            .configure_remote()
+            .map_err(Error::UnableToConfigureCloud)?;
+
+        self.config.cloud.remote = Some(remote);
+        self.config.save();
+        Ok(())
+    }
+}
+
+/// Cloud configuration snapshot for a settings UI.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct CloudStatus {
+    pub connected: bool,
+    /// e.g. `"google drive"`, `"dropbox"` - `None` when nothing is configured.
+    pub remote_kind: Option<String>,
+    /// Cloud-side folder name (sibling to the local backup root's contents).
+    pub path: String,
+    pub synchronize: bool,
+    pub rclone_path: String,
+    pub rclone_valid: bool,
 }
 
 pub mod parameters {
@@ -575,6 +834,9 @@ pub mod parameters {
         /// and you don't want to accidentally back up that old save again.
         /// (If the save file gets updated during play, it will be considered newer.)
         pub skip_downgrade: bool,
+        /// Cooperative cancellation token checked between per-game steps.
+        /// `None` (the default) runs the operation to completion.
+        pub cancel: Option<Cancel>,
     }
 
     #[derive(Clone, Debug, Default, PartialEq, Eq)]

@@ -30,6 +30,27 @@
   text-align: center;
 }
 
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.app-header h1 {
+  margin: 0;
+}
+
+.icon-button {
+  position: fixed;
+  top: 1em;
+  right: 1em;
+  font-size: 1.3em;
+  line-height: 1;
+  padding: 0.4em 0.6em;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -85,10 +106,26 @@ button:active {
   border-color: #396cd8;
   background-color: #e8e8e8;
 }
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
 
 input,
 button {
   outline: none;
+}
+
+.search-row {
+  display: flex;
+  gap: 0.5em;
+  max-width: 600px;
+  margin: 1em auto 0;
+}
+
+.search-field {
+  flex: 1;
+  box-sizing: border-box;
 }
 
 .game-list {
@@ -107,6 +144,19 @@ button {
   border-bottom: 1px solid rgba(128, 128, 128, 0.25);
 }
 
+.star-button {
+  padding: 0.2em 0.4em;
+  font-size: 1.2em;
+  line-height: 1;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+
+.star-button:hover {
+  border-color: transparent;
+}
+
 .game-name {
   flex: 1;
   font-weight: 500;
@@ -115,6 +165,81 @@ button {
 .game-status {
   font-size: 0.85em;
   opacity: 0.75;
+}
+
+.cloud-settings {
+  max-width: 600px;
+  margin: 2em auto 0;
+  padding: 1em 1.5em;
+  border-radius: 8px;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  text-align: left;
+}
+
+.cloud-settings h2 {
+  margin-top: 0;
+}
+
+.cloud-settings .row {
+  justify-content: flex-start;
+  gap: 0.5em;
+  margin: 0.75em 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  margin: 0.75em 0;
+  font-size: 0.9em;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.9em;
+}
+
+.checkbox-field input {
+  width: auto;
+  padding: 0;
+  box-shadow: none;
+}
+
+.error-text {
+  color: #d33;
+}
+
+.warning-text {
+  color: #b8860b;
+}
+
+.scanning-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75em;
+  padding: 1.5em 0;
+  max-width: 600px;
+  margin: 1em auto;
+  font-size: 0.95em;
+  opacity: 0.8;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid rgba(128, 128, 128, 0.3);
+  border-top-color: #396cd8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-color-scheme: dark) {

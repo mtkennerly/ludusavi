@@ -245,6 +245,30 @@ impl BackupSemantics {
     pub fn is_empty(&self) -> bool {
         self.directories.is_empty()
     }
+
+    /// Combine the semantics of a full backup and its differential.
+    ///
+    /// A restore composes files from both, so it needs both sets of directories to
+    /// resolve every file. Union is safe because entries are only ever used for prefix
+    /// matching, so an entry can never match a path that isn't under it.
+    pub fn merged(full: &Self, diff: Option<&Self>) -> Self {
+        let mut directories = full.directories.clone();
+        if let Some(diff) = diff {
+            for (dir, semantics) in &diff.directories {
+                directories.insert(dir.clone(), semantics.clone());
+            }
+        }
+        Self { directories }
+    }
+
+    /// Paths of the Wine/Proton prefixes these files were backed up from.
+    pub fn wine_prefixes(&self) -> Vec<String> {
+        self.directories
+            .iter()
+            .filter(|(_, semantics)| semantics.kind == SemanticDirKind::Wine)
+            .map(|(dir, _)| dir.clone())
+            .collect()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -702,6 +726,7 @@ impl GameLayout {
             Some((full, None)) => {
                 files.extend(self.restorable_files_from_full_backup(
                     full,
+                    &full.semantics,
                     scan_kind,
                     redirects,
                     reverse_redirects_on_restore,
@@ -710,8 +735,14 @@ impl GameLayout {
                 ));
             }
             Some((full, Some(diff))) => {
+                // Both halves must see the union: a full backup predating Wine semantics
+                // composed with a newer differential would otherwise leave every inherited
+                // file unmapped, restoring it to the source device's literal path.
+                let semantics = BackupSemantics::merged(&full.semantics, Some(&diff.semantics));
+
                 files.extend(self.restorable_files_from_diff_backup(
                     diff,
+                    &semantics,
                     scan_kind,
                     redirects,
                     reverse_redirects_on_restore,
@@ -721,6 +752,7 @@ impl GameLayout {
 
                 for (scan_key, full_file) in self.restorable_files_from_full_backup(
                     full,
+                    &semantics,
                     scan_kind,
                     redirects,
                     reverse_redirects_on_restore,
@@ -741,6 +773,7 @@ impl GameLayout {
     fn restorable_files_from_full_backup(
         &self,
         backup: &FullBackup,
+        semantics: &BackupSemantics,
         scan_kind: ScanKind,
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
@@ -757,7 +790,7 @@ impl GameLayout {
                 redirects,
                 reverse_redirects_on_restore,
                 ScanKind::Restore,
-                Some(&backup.semantics),
+                Some(semantics),
                 wine_redirect,
             );
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
@@ -815,6 +848,7 @@ impl GameLayout {
     fn restorable_files_from_diff_backup(
         &self,
         backup: &DifferentialBackup,
+        semantics: &BackupSemantics,
         scan_kind: ScanKind,
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
@@ -832,7 +866,7 @@ impl GameLayout {
                 redirects,
                 reverse_redirects_on_restore,
                 ScanKind::Restore,
-                Some(&backup.semantics),
+                Some(semantics),
                 wine_redirect,
             );
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
@@ -2493,10 +2527,10 @@ mod tests {
 
         fn wine_redirect_context(prefix: &str, wine_user: &str) -> semantic::Wine {
             semantic::Wine {
-                preferred_prefix: Some(semantic::Prefix {
+                prefixes: vec![semantic::Prefix {
                     path: StrictPath::new(prefix),
                     wine_user: wine_user.to_string(),
-                }),
+                }],
                 known_folders: None,
             }
         }
@@ -4110,6 +4144,109 @@ children: []
 "#;
             let full: FullBackup = serde_yaml::from_str(yaml).unwrap();
             assert_eq!(full.semantics, BackupSemantics::default());
+        }
+
+        fn wine_dir(prefix: &str) -> BTreeMap<String, DirectorySemantics> {
+            btree_map! {
+                prefix.to_string(): DirectorySemantics { kind: SemanticDirKind::Wine },
+            }
+        }
+
+        #[test]
+        fn merged_unions_directories_from_both_sides() {
+            let full = BackupSemantics {
+                directories: wine_dir("/old/prefix"),
+            };
+            let diff = BackupSemantics {
+                directories: wine_dir("/new/prefix"),
+            };
+            let merged = BackupSemantics::merged(&full, Some(&diff));
+            assert_eq!(2, merged.directories.len());
+            assert!(merged.directories.contains_key("/old/prefix"));
+            assert!(merged.directories.contains_key("/new/prefix"));
+        }
+
+        #[test]
+        fn merged_with_no_diff_is_just_full() {
+            let full = BackupSemantics {
+                directories: wine_dir("/old/prefix"),
+            };
+            assert_eq!(full, BackupSemantics::merged(&full, None));
+        }
+
+        /// The bug this guards: a full backup made before Wine semantics were recorded
+        /// (empty `semantics.directories`) has a differential on top of it that *does*
+        /// carry semantics. A file inherited from the full backup (present only there,
+        /// not overridden in the differential) must still get remapped using the
+        /// differential's semantics - otherwise only newly-changed files are fixed and
+        /// the bulk of an old game's saves keep restoring to the wrong machine's path.
+        #[test]
+        fn inherited_full_backup_files_use_diff_semantics() {
+            let old_prefix = "/home/deck/.local/share/Steam/steamapps/compatdata/4110821628/pfx";
+            let new_prefix = "/home/kookoo/.local/share/Steam/steamapps/compatdata/2811670038/pfx";
+            let stored = format!("{old_prefix}/drive_c/users/steamuser/save.lsv");
+
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
+                mapping: IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "backup-1".into(),
+                        when: chrono::DateTime::<chrono::Utc>::default(),
+                        // Predates Gap A: no semantics recorded at all.
+                        semantics: BackupSemantics::default(),
+                        files: btree_map! {
+                            mapping_file_key(&stored): IndividualMappingFile { hash: "old".into(), size: 1 },
+                        },
+                        children: VecDeque::from(vec![DifferentialBackup {
+                            name: "backup-2".into(),
+                            when: chrono::DateTime::<chrono::Utc>::default(),
+                            // The differential is where semantics were first recorded;
+                            // it has no files of its own, so backup-1's file is Inherited.
+                            semantics: BackupSemantics {
+                                directories: wine_dir(old_prefix),
+                            },
+                            files: BTreeMap::new(),
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }]),
+                },
+            };
+
+            let ctx = semantic::Wine {
+                prefixes: vec![semantic::Prefix {
+                    path: StrictPath::new(new_prefix),
+                    wine_user: "steamuser".to_string(),
+                }],
+                known_folders: None,
+            };
+
+            let files = layout.restorable_files(
+                &BackupId::Latest,
+                ScanKind::Restore,
+                &[],
+                false,
+                &Default::default(),
+                Some(&ctx),
+            );
+
+            let restored = files
+                .values()
+                .find(|f| f.original_path.as_ref().unwrap().raw() == stored)
+                .expect("inherited file should still be present");
+
+            let redirected = restored
+                .redirected
+                .as_ref()
+                .expect("inherited file must be remapped using the differential's semantics");
+            assert!(
+                redirected.raw().starts_with(new_prefix),
+                "should redirect into the new prefix: {}",
+                redirected.raw()
+            );
+            assert!(!redirected.raw().contains("4110821628"));
         }
 
         #[test]

@@ -1,11 +1,8 @@
 use std::{
     num::NonZeroUsize,
     path::PathBuf,
-    sync::{LazyLock, Mutex},
+    sync::{Arc, LazyLock, Mutex, atomic::{AtomicBool, Ordering}},
 };
-
-#[cfg(feature = "app")]
-use std::sync::{Arc, atomic::AtomicBool};
 
 use itertools::Itertools;
 
@@ -124,6 +121,13 @@ pub enum Error {
     CloudConflict,
     GameDidNotLaunch {
         why: String,
+    },
+    /// The backup was made inside a Wine/Proton prefix, but no matching prefix could be
+    /// found on this machine, so restoring would write to the source device's literal
+    /// path (e.g. `/home/deck/...` on a PC) instead of anywhere useful here.
+    WinePrefixNotFound {
+        game: String,
+        backup_prefix: String,
     },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -400,6 +404,45 @@ pub enum Security {
     /// Disable certificate and hostname validation when performing downloads.
     Unsafe,
 }
+
+/// Cooperative cancellation flag for long-running operations (e.g. the GUI's
+/// full-library scan). Cheap to clone and share across threads; checking it is a
+/// single atomic load.
+///
+/// `PartialEq`/`Eq` are implemented as always-equal so that this can sit inside
+/// deriving structs (like `parameters::BackUp`) whose equality never needs to
+/// consider it.
+#[derive(Clone, Debug, Default)]
+pub struct Cancel(Arc<AtomicBool>);
+
+impl Cancel {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Create a token sharing the same underlying flag as `flag`.
+    pub fn from_flag(flag: Arc<AtomicBool>) -> Self {
+        Self(flag)
+    }
+
+    /// Signal cancellation to this token and all of its clones.
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+
+    /// Whether [`Self::cancel`] has been called on this token or a clone of it.
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::Relaxed)
+    }
+}
+
+impl PartialEq for Cancel {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for Cancel {}
 
 pub fn get_reqwest_client(security: Security) -> reqwest::Client {
     match security {

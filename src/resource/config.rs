@@ -1167,7 +1167,11 @@ impl Default for Scan {
             show_deselected_games: true,
             show_unchanged_games: true,
             show_unscanned_games: true,
-            redirect_wine: false,
+            // On by default: without it, cross-device sync of a Wine/Proton game restores
+            // to the source device's literal path (e.g. `/home/deck/...` on a PC). Safe to
+            // default on: for a backup with no recorded Wine semantics, or when no local
+            // prefix is found, the redirect logic is a no-op and nothing changes.
+            redirect_wine: true,
         }
     }
 }
@@ -1193,10 +1197,15 @@ pub struct SyncConfig {
     /// Games enabled for cloud sync (by game name).
     /// Only games in this set will appear as cards with push/pull buttons.
     pub enabled_games: std::collections::BTreeSet<String>,
+    /// Games found by a recent scan (installed locally with actual save data).
+    /// Persisted so the UI doesn't need to re-scan on every launch; a fresh full
+    /// scan replaces this set.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub discovered_games: BTreeSet<String>,
 }
 
 fn is_sync_config_default(sync: &SyncConfig) -> bool {
-    sync.enabled_games.is_empty()
+    sync.enabled_games.is_empty() && sync.discovered_games.is_empty()
 }
 
 impl Default for Cloud {
@@ -2295,7 +2304,8 @@ mod tests {
                     show_deselected_games: false,
                     show_unchanged_games: false,
                     show_unscanned_games: false,
-                    redirect_wine: false,
+                    // Not set in the YAML above, so this takes the (now-true) default.
+                    redirect_wine: true,
                 },
                 cloud: Cloud {
                     remote: Some(Remote::GoogleDrive {
@@ -2998,9 +3008,9 @@ customGames:
     }
 
     #[test]
-    fn scan_redirect_wine_defaults_to_false() {
+    fn scan_redirect_wine_defaults_to_true() {
         let scan = Scan::default();
-        assert!(!scan.redirect_wine);
+        assert!(scan.redirect_wine);
     }
 
     #[test]

@@ -31,6 +31,29 @@ If you'd like to help translate Ludusavi into other languages,
 
 > ![GUI demo of previewing a backup](docs/demo-gui.gif)
 
+## Fork: Ludusavi Sync
+
+This repository is a fork of [ludusavi](https://github.com/mtkennerly/ludusavi)
+with per-game cloud sync added on top of the existing backup tool.
+The base tool's features (19,000+ game saves, multi-store support, CLI + GUI)
+are fully intact. The fork adds:
+
+* **Per-game cloud sync** -- push and pull individual games to a shared cloud folder
+  (Google Drive via rclone), rather than mirroring your entire backup.
+* **Additive-only transfers** -- `rclone copy` is used instead of `rclone sync`,
+  so pushing one game can never delete another game's cloud data.
+* **Cross-device Wine/Proton remap** -- backed-up Proton saves resolve to the
+  correct local prefix on each machine, even when the Linux username and
+  compatdata app ID differ between devices.
+* **Tauri desktop GUI** -- a lightweight React+TypeScript frontend (in `desktop/`)
+  with a star-to-sync game list, search, scan, backup/pull/push controls, and
+  cloud settings.
+* **CLI subcommand** -- `ludusavi sync push|pull|status` for scripting and
+  headless use (e.g. Steam Deck via SSH or a cron job).
+
+Upstream documentation for the base tool's features and configuration is
+preserved below and in the `docs/` directory.
+
 ## Installation
 <!-- These anchors are kept for compatibility with old section headers. -->
 <a name="requirements"></a>
@@ -152,6 +175,59 @@ cross-platform and cross-store solution:
   * Only supports Linux and Steam.
   * Database is not actively updated. As of 2022-11-16, the last update was 2018-06-05.
   * No command line interface.
+
+## Building
+
+### CLI binary
+
+Prerequisites: latest stable Rust, `gcc`, and on Linux also `libxcb-composite0-dev libgtk-3-dev`.
+
+```bash
+cargo build --release           # produces target/release/ludusavi
+cargo build --release --no-default-features   # library-only (no CLI deps)
+```
+
+### Tauri desktop app
+
+Prerequisites: Rust, [pnpm](https://pnpm.io/), [rclone](https://rclone.org/),
+and on Linux the same system packages as above plus `libwebkit2gtk-4.1-dev`.
+
+```bash
+cd desktop
+pnpm install
+pnpm run tauri build            # produces AppImage in src-tauri/target/release/bundle/appimage/
+```
+
+For development with hot-reload:
+
+```bash
+cd desktop
+pnpm install
+pnpm run tauri:dev              # uses scripts/dev.sh (WebKitGTK/Wayland workaround)
+```
+
+`scripts/dev.sh` sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` and falls back to
+`GDK_BACKEND=x11` if the Wayland path crashes on your compositor/GPU.
+
+### Steam Deck
+
+Cross-compile the CLI:
+
+```bash
+cargo build --release --target x86_64-unknown-linux-gnu
+```
+
+The Tauri desktop app also works on Deck in desktop mode. Use `tauri:dev`
+via the dev.sh script for the same Wayland workaround.
+
+### Cross-compiling
+
+For other targets, install the appropriate target and linker:
+
+```bash
+rustup target add x86_64-unknown-linux-musl
+cargo build --release --target x86_64-unknown-linux-musl
+```
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).

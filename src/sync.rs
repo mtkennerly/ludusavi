@@ -5,7 +5,7 @@ use crate::{
     prelude::{Error, Finality, StrictPath, SyncDirection},
     resource::{
         config::Config,
-        sync_state::{GameSyncEntry, SyncStateFile},
+        sync_state::{self, GameSyncEntry, SyncStateFile},
     },
     scan::layout::BackupLayout,
 };
@@ -43,12 +43,7 @@ fn wait_for_rclone(process: &mut crate::cloud::RcloneProcess) -> Result<Vec<Clou
 }
 
 /// Upload settings.config to the cloud after a push.
-fn upload_sync_state(
-    rclone: &Rclone,
-    backup_dir: &StrictPath,
-    cloud_path: &str,
-    finality: Finality,
-) {
+fn upload_sync_state(rclone: &Rclone, backup_dir: &StrictPath, cloud_path: &str, finality: Finality) {
     if finality.preview() {
         return;
     }
@@ -70,39 +65,107 @@ fn upload_sync_state(
     }
 }
 
-/// Download settings.config from the cloud before a pull.
-fn download_sync_state(
+/// Scratch directory used to stage the cloud's settings.config before merging it.
+/// Lives under the backup root so it lands on the same filesystem.
+const CLOUD_STATE_STAGING_DIR: &str = ".ludusavi-cloud-state";
+
+/// Fetch the cloud's settings.config without touching the local one.
+///
+/// Returns `None` if the transfer failed or the cloud has no state file yet.
+fn fetch_cloud_sync_state(
     rclone: &Rclone,
     backup_dir: &StrictPath,
     cloud_path: &str,
     finality: Finality,
-) {
+) -> Option<SyncStateFile> {
     if finality.preview() {
-        return;
+        return None;
     }
-    let mut process = match rclone.copy(
-        backup_dir,
-        cloud_path,
-        SyncDirection::Download,
-        finality,
-        &["settings.config".to_string()],
-    ) {
-        Ok(p) => p,
-        Err(e) => {
-            log::error!("Failed to start download of settings.config: {:?}", e);
-            return;
+
+    let staging = backup_dir.joined(CLOUD_STATE_STAGING_DIR);
+    let _ = staging.remove();
+    if let Err(e) = staging.create_dirs() {
+        log::error!("Failed to create staging dir for settings.config: {:?}", e);
+        return None;
+    }
+
+    let result = (|| {
+        let mut process = rclone
+            .copy(
+                &staging,
+                cloud_path,
+                SyncDirection::Download,
+                finality,
+                &[SyncStateFile::FILE_NAME.to_string()],
+            )
+            .map_err(|e| format!("failed to start download: {e:?}"))?;
+        wait_for_rclone(&mut process).map_err(|e| format!("download failed: {e:?}"))?;
+
+        if !staging.joined(SyncStateFile::FILE_NAME).is_file() {
+            // Cloud has no state file yet; nothing to merge.
+            return Ok(None);
         }
-    };
-    if let Err(e) = wait_for_rclone(&mut process) {
-        log::error!("Failed to download settings.config: {:?}", e);
+        Ok::<_, String>(Some(SyncStateFile::load_from(&staging)))
+    })();
+
+    let _ = staging.remove();
+
+    match result {
+        Ok(state) => state,
+        Err(e) => {
+            log::error!("Unable to fetch cloud {}: {}", SyncStateFile::FILE_NAME, e);
+            None
+        }
     }
+}
+
+/// Merge the cloud's settings.config into the local one and save.
+///
+/// This must never be a plain overwrite: each device is the only authority for its own
+/// entry in [`GameSyncEntry::prefixes`], and games only known locally would otherwise be
+/// dropped on every pull.
+fn merge_cloud_sync_state(
+    rclone: &Rclone,
+    backup_dir: &StrictPath,
+    cloud_path: &str,
+    finality: Finality,
+) -> SyncStateFile {
+    let mut local = SyncStateFile::load_from(backup_dir);
+
+    if let Some(cloud) = fetch_cloud_sync_state(rclone, backup_dir, cloud_path, finality) {
+        local.merge_from(&cloud);
+        if let Err(e) = local.save_to(backup_dir) {
+            log::error!("Failed to save merged sync state: {:?}", e);
+        }
+    }
+
+    local
+}
+
+/// The Wine/Proton prefix this machine's latest backup of a game came from.
+///
+/// Recorded by the backup scan in the mapping's `semantics`. Returns `None` for games
+/// that aren't inside a prefix (native builds, Windows hosts), which is the common case.
+fn local_wine_prefix(layout: &BackupLayout, game_name: &str) -> Option<String> {
+    let game_layout = layout.game_layout(game_name);
+    let (full, diff) = game_layout.find_by_id(&crate::scan::BackupId::Latest)?;
+    let semantics = crate::scan::layout::BackupSemantics::merged(&full.semantics, diff.map(|d| &d.semantics));
+
+    let mut prefixes = semantics.wine_prefixes();
+    if prefixes.len() > 1 {
+        // Ambiguous; recording an arbitrary one would send another device to the wrong
+        // place. Better to record nothing and let it fall back to local discovery.
+        log::warn!("Game {game_name} has multiple Wine prefixes; not recording one for sync");
+        return None;
+    }
+    prefixes.pop()
 }
 
 /// High-level push operation for a single game.
 /// 1. Validates cloud config
 /// 2. Locates the game's backup folder
 /// 3. Uploads via rclone copy (additive - no deletes)
-/// 4. Uploads settings.config to cloud
+/// 4. Merges + uploads settings.config, recording this device's Wine prefix
 pub fn push_game(
     config: &Config,
     backup_dir: &StrictPath,
@@ -116,24 +179,39 @@ pub fn push_game(
     let layout = BackupLayout::new(backup_dir.clone());
 
     let game_folder = layout.game_folder(game_name);
-    let game_dir_name = game_folder
-        .leaf()
-        .ok_or(Error::GameIsUnrecognized)?;
+    let game_dir_name = game_folder.leaf().ok_or(Error::GameIsUnrecognized)?;
 
     let rclone = Rclone::new(config.apps.rclone.clone(), remote);
 
     // Upload game files
-    let mut process = match rclone.copy(backup_dir, cloud_path, SyncDirection::Upload, finality, &[game_dir_name]) {
+    let mut process = match rclone.copy(
+        backup_dir,
+        cloud_path,
+        SyncDirection::Upload,
+        finality,
+        &[game_dir_name],
+    ) {
         Ok(p) => p,
         Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
     };
 
     let changes = wait_for_rclone(&mut process)?;
 
-    // Update local settings.config and upload to cloud
+    // Update local settings.config and upload to cloud.
     if !finality.preview() {
-        let mut sync_state = SyncStateFile::load_from(backup_dir);
+        // Merge the cloud's state in first, so pushing can't drop entries (or other
+        // devices' recorded prefixes) that this device has never seen.
+        let mut sync_state = merge_cloud_sync_state(&rclone, backup_dir, cloud_path, finality);
+
         sync_state.merge_game(game_name, SyncStateFile::push_entry(game_name));
+
+        // Record where this game's saves live on this machine, so a device pulling this
+        // backup knows where to put them. Read from the backup we just made rather than
+        // rescanning: the prefix is whatever the scan already resolved.
+        if let Some(prefix) = local_wine_prefix(&layout, game_name) {
+            sync_state.set_prefix(game_name, &sync_state::current_device(), &prefix);
+        }
+
         if let Err(e) = sync_state.save_to(backup_dir) {
             log::error!("Failed to save sync state locally: {:?}", e);
         }
@@ -166,33 +244,53 @@ pub fn pull_game(
     let layout = BackupLayout::new(backup_dir.clone());
 
     let game_folder = layout.game_folder(game_name);
-    let game_dir_name = game_folder
-        .leaf()
-        .ok_or(Error::GameIsUnrecognized)?;
+    let game_dir_name = game_folder.leaf().ok_or(Error::GameIsUnrecognized)?;
 
     let rclone = Rclone::new(config.apps.rclone.clone(), remote);
 
-    // Download settings.config from cloud first
-    download_sync_state(&rclone, backup_dir, cloud_path, finality);
+    // Merge the cloud's settings.config into the local one first, so the game's
+    // per-device prefix registry is available to the restore that follows.
+    let sync_state = merge_cloud_sync_state(&rclone, backup_dir, cloud_path, finality);
+
+    if !finality.preview() && !config.scan.redirect_wine {
+        log::warn!(
+            "scan.redirect_wine is disabled: restoring {game_name} will write to the \
+             source device's literal paths instead of this machine's Wine prefix"
+        );
+    }
 
     // Download game files
-    let mut process = match rclone.copy(backup_dir, cloud_path, SyncDirection::Download, finality, &[game_dir_name]) {
+    let mut process = match rclone.copy(
+        backup_dir,
+        cloud_path,
+        SyncDirection::Download,
+        finality,
+        &[game_dir_name],
+    ) {
         Ok(p) => p,
         Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
     };
 
     let changes = wait_for_rclone(&mut process)?;
 
-    // Merge cloud metadata into local state
-    if !finality.preview() {
-        let local_state = SyncStateFile::load_from(backup_dir);
-        if let Some(info) = local_state.game_info(game_name).cloned() {
-            log::info!(
-                "Cloud has game {} last pushed by {} at {}",
-                game_name,
-                info.device,
-                info.last_push
-            );
+    if !finality.preview()
+        && let Some(info) = sync_state.game_info(game_name)
+    {
+        log::info!(
+            "Cloud has game {} last pushed by {} at {}",
+            game_name,
+            info.device,
+            info.last_push
+        );
+
+        let device = sync_state::current_device();
+        match info.prefixes.get(&device) {
+            Some(prefix) => log::info!("Will restore {game_name} into this device's prefix: {prefix}"),
+            None if !info.prefixes.is_empty() => log::info!(
+                "No Wine prefix recorded for this device ({device}); \
+                 restore will fall back to detecting one locally"
+            ),
+            None => {}
         }
     }
 
@@ -205,10 +303,7 @@ pub fn pull_game(
 }
 
 /// Get sync info for a game from settings.config.
-pub fn get_game_sync_info(
-    backup_dir: &StrictPath,
-    game_name: &str,
-) -> Option<GameSyncEntry> {
+pub fn get_game_sync_info(backup_dir: &StrictPath, game_name: &str) -> Option<GameSyncEntry> {
     let state = SyncStateFile::load_from(backup_dir);
     state.game_info(game_name).cloned()
 }

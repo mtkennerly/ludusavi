@@ -64,6 +64,7 @@ manifest-is-invalid = Error: The manifest file is invalid.
 manifest-cannot-be-updated = Error: Unable to check for an update to the manifest file. Is your Internet connection down?
 cannot-prepare-backup-target = Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: {$path}
 restoration-source-is-invalid = Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: {$path}
+wine-prefix-not-found = Error: {$game} was backed up from a Wine/Proton prefix ({$path}), but no matching prefix was found on this machine. Launch the game once to create its prefix, or set a custom wine_prefix, then try again.
 registry-issue = Error: Some registry entries were skipped.
 unable-to-browse-file-system = Error: Unable to browse on your system.
 unable-to-open-directory = Error: Unable to open directory:

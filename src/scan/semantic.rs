@@ -1,11 +1,12 @@
 use crate::{
-    api::{Config, StrictPath},
+    api::StrictPath,
     scan::layout::{BackupSemantics, SemanticDirKind},
 };
 
-pub use self::{convert::KnownFolders, prefix::Prefix};
+pub use self::{convert::KnownFolders, discovery::WineEnvironment, prefix::Prefix};
 
 mod convert;
+mod discovery;
 mod prefix;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -30,8 +31,9 @@ pub struct Path {
 
 /// Context for generating Wine ↔ Windows redirects at restore time.
 pub struct Wine {
-    /// First valid `wine_prefix` from the matching custom game.
-    pub preferred_prefix: Option<Prefix>,
+    /// Local prefixes this game could be restored into, most-specific first.
+    /// Empty on Windows.
+    pub prefixes: Vec<Prefix>,
     /// Current Windows known folders, only populated on Windows.
     pub known_folders: Option<KnownFolders>,
 }
@@ -39,31 +41,21 @@ pub struct Wine {
 impl Wine {
     /// Build a context from the current game's config and system state.
     /// Returns None if redirect_wine is disabled or no usable context exists.
-    pub fn for_game(game_name: &str, config: &Config) -> Option<Self> {
-        if !config.scan.redirect_wine {
+    pub fn for_game(game_name: &str, env: &WineEnvironment) -> Option<Self> {
+        if !env.config.scan.redirect_wine {
             return None;
         }
 
-        // Find the first valid wine_prefix from a matching custom game.
-        let preferred_prefix = config
-            .custom_games
-            .iter()
-            .find(|cg| cg.name == game_name)
-            .and_then(|cg| {
-                cg.wine_prefix
-                    .iter()
-                    .filter(|wp| !wp.trim().is_empty())
-                    .find_map(|wp| Prefix::validated(&StrictPath::new(wp)))
-            });
+        let prefixes = env.prefixes_for_game(game_name);
 
         // On Windows, populate known_folders so that Wine→Windows restore can
         // convert semantic paths to physical paths.
         let known_folders = KnownFolders::windows();
 
         // Return context if we have either a usable prefix or known folders.
-        if preferred_prefix.is_some() || known_folders.is_some() {
+        if !prefixes.is_empty() || known_folders.is_some() {
             Some(Self {
-                preferred_prefix,
+                prefixes,
                 known_folders,
             })
         } else {
@@ -83,15 +75,18 @@ pub fn generate_restore_redirect(
 ) -> Option<StrictPath> {
     let stored_raw = stored_path.raw();
 
+    // Longest match wins: a merged full+diff semantics map can hold several prefixes, and
+    // one may be nested inside another (e.g. a prefix and its own `pfx` subdirectory).
     let wine_match = semantics
         .directories
         .iter()
-        .find(|(dir, semantics)| stored_raw.starts_with(dir.as_str()) && semantics.kind == SemanticDirKind::Wine);
+        .filter(|(dir, semantics)| stored_raw.starts_with(dir.as_str()) && semantics.kind == SemanticDirKind::Wine)
+        .max_by_key(|(dir, _)| dir.len());
 
     if let Some((prefix_path, _)) = wine_match {
-        // Linux/Wine backup → Windows restore: preferred_prefix is None, known_folders is Some.
+        // Linux/Wine backup → Windows restore: no local prefixes, known_folders is Some.
         if let Some(kf) = &context.known_folders
-            && context.preferred_prefix.is_none()
+            && context.prefixes.is_empty()
         {
             let prefix_sp = StrictPath::new(prefix_path.clone());
             let wine_user = prefix::detect_wine_user_from_raw_path(stored_raw, prefix_path)?;
@@ -101,13 +96,15 @@ pub fn generate_restore_redirect(
 
         // Wine backup → Wine restore (same or different prefix):
         // Use semantic conversion to handle username changes correctly.
-        if let Some(prefix) = &context.preferred_prefix {
+        if !context.prefixes.is_empty() {
             let prefix_sp = StrictPath::new(prefix_path.clone());
             let wine_user = prefix::detect_wine_user_from_raw_path(stored_raw, prefix_path)?;
+            // Decomposing depends only on the stored path and the backup's own prefix,
+            // so it is done once and then materialized against each local candidate.
             if let Some(semantic) = convert::wine_physical_to_semantic(stored_path, &prefix_sp, &wine_user)
-                .and_then(|s| materialize_to_wine(&s, prefix))
+                && let Some(target) = pick_prefix(&semantic, &context.prefixes)
             {
-                return Some(semantic);
+                return Some(target);
             }
         }
     }
@@ -115,14 +112,41 @@ pub fn generate_restore_redirect(
     // Windows backup → Linux/Wine restore: detect Windows special folders heuristically.
     // This handles the case where the stored path is a Windows path (e.g., C:/Users/...)
     // and we're restoring into a Wine prefix.
-    if let Some(prefix) = &context.preferred_prefix
+    if !context.prefixes.is_empty()
         && let Some(semantic) = convert::windows_physical_to_semantic(stored_path, &KnownFolders::default())
-        && let Some(target) = materialize_to_wine(&semantic, prefix)
+        && let Some(target) = pick_prefix(&semantic, &context.prefixes)
     {
         return Some(target);
     }
 
     None
+}
+
+/// Materialize a semantic path against the best of several candidate prefixes.
+///
+/// With one candidate this is just `materialize_to_wine`. With several — e.g. a game
+/// owned on Steam that also has a non-Steam shortcut — prefer the prefix that already
+/// holds this game's save directory, since that is where the user actually plays. Falls
+/// back to the highest-ranked prefix that materializes at all, for a first-ever restore
+/// onto a machine where the directory doesn't exist yet.
+fn pick_prefix(semantic: &Path, prefixes: &[Prefix]) -> Option<StrictPath> {
+    if let [only] = prefixes {
+        return materialize_to_wine(semantic, only);
+    }
+
+    let mut fallback = None;
+    for prefix in prefixes {
+        let Some(target) = materialize_to_wine(semantic, prefix) else {
+            continue;
+        };
+        if target.parent().is_some_and(|parent| parent.is_dir()) {
+            return Some(target);
+        }
+        if fallback.is_none() {
+            fallback = Some(target);
+        }
+    }
+    fallback
 }
 
 /// Materialize a semantic path to a Windows physical path using known folders.

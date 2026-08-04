@@ -63,4 +63,9 @@ impl SteamShortcuts {
     pub fn get(&self, name: &str) -> Option<&SteamShortcut> {
         self.0.get(name)
     }
+
+    #[cfg(test)]
+    pub fn set_for_test(&mut self, name: &str, id: u32) {
+        self.0.insert(name.to_string(), SteamShortcut { id, start_dir: None });
+    }
 }

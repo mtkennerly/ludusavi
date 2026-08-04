@@ -8,8 +8,7 @@ use ludusavi::{
     lang::{self, TRANSLATOR},
     metadata, path,
     prelude::{self, CONFIG_DIR, VERSION, app_dir},
-    sync,
-    report, resource, scan, wrap,
+    report, resource, scan, sync, wrap,
 };
 
 /// The logger handle must be retained until the application closes.

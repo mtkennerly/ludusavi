@@ -930,7 +930,16 @@ pub fn scan_game_for_backup(
     log::trace!("[{name}] completed scan for backup");
 
     let mut semantics = BackupSemantics::default();
-    for prefix in wine_prefixes_with_included_files(game, name, roots, launchers, wine_prefix, &found_files) {
+    for prefix in wine_prefixes_with_included_files(
+        game,
+        name,
+        roots,
+        launchers,
+        wine_prefix,
+        &all_ids,
+        steam_shortcut,
+        &found_files,
+    ) {
         semantics.directories.insert(
             prefix.render(),
             DirectorySemantics {
@@ -958,6 +967,8 @@ fn wine_prefixes_with_included_files(
     roots: &[Root],
     launchers: &Launchers,
     wine_prefix: Option<&StrictPath>,
+    ids: &IdSet,
+    steam_shortcut: Option<&SteamShortcut>,
     found_files: &HashMap<StrictPath, ScannedFile>,
 ) -> Vec<StrictPath> {
     let mut prefixes = Vec::new();
@@ -969,6 +980,16 @@ fn wine_prefixes_with_included_files(
     }
     if let Some(wp) = wine_prefix {
         prefixes.push(wp.clone());
+    }
+    // Steam Proton prefixes. These are otherwise invisible here: `parse_paths` only ever
+    // builds them as glob strings to find files with, so without this a Proton backup
+    // records no semantics and can never be remapped onto another machine.
+    if Os::HOST == Os::Linux {
+        for root in roots.iter().filter(|root| root.store() == Store::Steam) {
+            for id in ids.steam(steam_shortcut.map(|x| x.id)) {
+                prefixes.push(root.path().joined(format!("steamapps/compatdata/{id}/pfx")));
+            }
+        }
     }
     for root in roots {
         for wp in launchers.get_game(root, name).filter_map(|x| x.prefix.as_ref()) {
@@ -982,7 +1003,8 @@ fn wine_prefixes_with_included_files(
 
     let mut valid = Vec::new();
     for prefix in prefixes {
-        if valid.iter().any(|seen: &StrictPath| seen == &prefix) {
+        // Compare rendered paths so that e.g. `<home>/x` and `/home/user/x` don't both survive.
+        if valid.iter().any(|seen: &StrictPath| seen.render() == prefix.render()) {
             continue;
         }
         if semantic::Prefix::validated(&prefix).is_some()
@@ -1089,6 +1111,9 @@ fn compare_games_by_status(config: &Config, scan_info1: &ScanInfo, scan_info2: &
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "linux")]
+    use std::collections::BTreeSet;
+
     use pretty_assertions::assert_eq;
     use velcro::{btree_map, hash_map};
 
@@ -1101,6 +1126,158 @@ mod tests {
     };
 
     const ONLY_CONSTRUCTIVE: bool = false;
+
+    /// Build a Wine-prefix-shaped directory tree that `Prefix::validated` will accept.
+    #[cfg(target_os = "linux")]
+    fn make_valid_prefix(prefix: &str) {
+        let _ = std::fs::create_dir_all(format!("{prefix}/drive_c/users/steamuser"));
+        let _ = std::fs::create_dir_all(format!("{prefix}/drive_c/users/Public"));
+        let _ = std::fs::create_dir_all(format!("{prefix}/dosdevices"));
+        let _ = std::fs::File::create(format!("{prefix}/system.reg"));
+    }
+
+    /// Proton saves live under `<steam root>/steamapps/compatdata/<app id>/pfx`, which
+    /// `parse_paths` only ever materializes as a glob string. Without this being recorded
+    /// in the backup's semantics, a Proton save can never be remapped onto another machine.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn wine_prefixes_include_steam_compatdata() {
+        let tmp = tempfile::tempdir().unwrap();
+        let steam_root = tmp.path().to_str().unwrap().to_string();
+        let prefix = format!("{steam_root}/steamapps/compatdata/1086940/pfx");
+        make_valid_prefix(&prefix);
+
+        let save = format!("{prefix}/drive_c/users/steamuser/AppData/Local/Larian Studios/save.lsv");
+        let _ = std::fs::create_dir_all(format!("{prefix}/drive_c/users/steamuser/AppData/Local/Larian Studios"));
+        let _ = std::fs::File::create(&save);
+
+        let game = Game {
+            steam: crate::resource::manifest::SteamMetadata { id: Some(1086940) },
+            ..Default::default()
+        };
+        let steam_extra = BTreeSet::new();
+        let gog_extra = BTreeSet::new();
+        let ids = IdSet {
+            steam: Some(1086940),
+            gog: None,
+            flatpak: None,
+            gog_extra: &gog_extra,
+            lutris: None,
+            steam_extra: &steam_extra,
+        };
+        let found_files = hash_map! {
+            StrictPath::new(save.clone()): ScannedFile::new(0, EMPTY_HASH).change_new(),
+        };
+
+        let found = wine_prefixes_with_included_files(
+            &game,
+            "Baldur's Gate 3",
+            &[Root::new(StrictPath::new(steam_root), Store::Steam)],
+            &Launchers::default(),
+            None,
+            &ids,
+            None,
+            &found_files,
+        );
+
+        assert_eq!(
+            vec![StrictPath::new(prefix).render()],
+            found.iter().map(|x| x.render()).collect::<Vec<_>>(),
+        );
+    }
+
+    /// Non-Steam shortcuts get a per-machine generated app id, so the shortcut is the only
+    /// way to find the prefix for a game with no manifest Steam id.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn wine_prefixes_include_compatdata_for_steam_shortcut() {
+        let tmp = tempfile::tempdir().unwrap();
+        let steam_root = tmp.path().to_str().unwrap().to_string();
+        let prefix = format!("{steam_root}/steamapps/compatdata/2811670038/pfx");
+        make_valid_prefix(&prefix);
+
+        let save = format!("{prefix}/drive_c/users/steamuser/save.lsv");
+        let _ = std::fs::File::create(&save);
+
+        let steam_extra = BTreeSet::new();
+        let gog_extra = BTreeSet::new();
+        let ids = IdSet {
+            steam: None,
+            gog: None,
+            flatpak: None,
+            gog_extra: &gog_extra,
+            lutris: None,
+            steam_extra: &steam_extra,
+        };
+        let found_files = hash_map! {
+            StrictPath::new(save.clone()): ScannedFile::new(0, EMPTY_HASH).change_new(),
+        };
+
+        let found = wine_prefixes_with_included_files(
+            &game_with_no_ids(),
+            "Baldur's Gate 3",
+            &[Root::new(StrictPath::new(steam_root), Store::Steam)],
+            &Launchers::default(),
+            None,
+            &ids,
+            Some(&SteamShortcut {
+                id: 2811670038,
+                start_dir: None,
+            }),
+            &found_files,
+        );
+
+        assert_eq!(
+            vec![StrictPath::new(prefix).render()],
+            found.iter().map(|x| x.render()).collect::<Vec<_>>(),
+        );
+    }
+
+    /// A compatdata prefix that holds none of this game's saves must not be recorded,
+    /// or a restore would be pointed at an unrelated game's prefix.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn wine_prefixes_skip_compatdata_without_this_games_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        let steam_root = tmp.path().to_str().unwrap().to_string();
+        make_valid_prefix(&format!("{steam_root}/steamapps/compatdata/1086940/pfx"));
+
+        let steam_extra = BTreeSet::new();
+        let gog_extra = BTreeSet::new();
+        let ids = IdSet {
+            steam: Some(1086940),
+            gog: None,
+            flatpak: None,
+            gog_extra: &gog_extra,
+            lutris: None,
+            steam_extra: &steam_extra,
+        };
+        // The save lives outside the prefix entirely.
+        let found_files = hash_map! {
+            StrictPath::new(format!("{steam_root}/elsewhere/save.lsv")): ScannedFile::new(0, EMPTY_HASH).change_new(),
+        };
+
+        let found = wine_prefixes_with_included_files(
+            &game_with_no_ids(),
+            "Baldur's Gate 3",
+            &[Root::new(StrictPath::new(steam_root), Store::Steam)],
+            &Launchers::default(),
+            None,
+            &ids,
+            None,
+            &found_files,
+        );
+
+        assert!(
+            found.is_empty(),
+            "prefix without this game's files must not be recorded"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    fn game_with_no_ids() -> Game {
+        Game::default()
+    }
 
     fn wine_semantics(prefix: &str) -> BackupSemantics {
         BackupSemantics {
@@ -2218,6 +2395,35 @@ mod tests {
         );
     }
 
+    /// Guards the `redirect_wine` default flip (false -> true): a pre-existing backup
+    /// made before Wine semantics were recorded (empty `semantics.directories`) must
+    /// keep restoring exactly as it did before, even though a local prefix is now found
+    /// by default. No stored directory means nothing for `generate_restore_redirect` to
+    /// match against, regardless of what `Wine.prefixes` contains.
+    #[test]
+    fn empty_semantics_linux_path_is_untouched_by_local_prefixes() {
+        let ctx = semantic::Wine {
+            prefixes: vec![semantic::Prefix {
+                path: StrictPath::new("/home/kookoo/.local/share/Steam/steamapps/compatdata/2811670038/pfx"),
+                wine_user: "steamuser".to_string(),
+            }],
+            known_folders: None,
+        };
+        assert_eq!(
+            None,
+            game_file_target(
+                &StrictPath::new(
+                    "/home/deck/.local/share/Steam/steamapps/compatdata/4110821628/pfx/drive_c/users/steamuser/save.dat"
+                ),
+                &[],
+                false,
+                ScanKind::Restore,
+                Some(&BackupSemantics::default()),
+                Some(&ctx),
+            )
+        );
+    }
+
     #[test]
     fn game_file_target_redirect_wine_on_backup_is_noop() {
         // On backup, Wine redirect is not applied (store absolute path).
@@ -2244,7 +2450,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
-            preferred_prefix: None,
+            prefixes: vec![],
             known_folders: Some(kf),
         };
         let result = game_file_target(
@@ -2279,7 +2485,7 @@ mod tests {
             wine_user: "wineuser".to_string(),
         };
         let ctx = semantic::Wine {
-            preferred_prefix: Some(prefix),
+            prefixes: vec![prefix],
             known_folders: None,
         };
         let result = game_file_target(
@@ -2316,7 +2522,7 @@ mod tests {
             wine_user: "wineuser".to_string(),
         };
         let ctx = semantic::Wine {
-            preferred_prefix: Some(prefix),
+            prefixes: vec![prefix],
             known_folders: None,
         };
 
@@ -2340,10 +2546,10 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let prefix = StrictPath::new(tmp.path().to_string_lossy().to_string());
         let ctx = semantic::Wine {
-            preferred_prefix: Some(semantic::Prefix {
+            prefixes: vec![semantic::Prefix {
                 path: prefix.clone(),
                 wine_user: "wineuser".to_string(),
-            }),
+            }],
             known_folders: None,
         };
 
@@ -2377,7 +2583,7 @@ mod tests {
     fn game_file_target_redirect_wine_no_prefix_returns_none() {
         let sem = wine_semantics("/some/other/prefix");
         let ctx = semantic::Wine {
-            preferred_prefix: None,
+            prefixes: vec![],
             known_folders: Some(semantic::KnownFolders::default()),
         };
         assert_eq!(
@@ -2398,7 +2604,7 @@ mod tests {
         // User-configured redirects take precedence over Wine redirect.
         let sem = wine_semantics("/home/user/prefix");
         let ctx = semantic::Wine {
-            preferred_prefix: None,
+            prefixes: vec![],
             known_folders: Some(semantic::KnownFolders {
                 documents: Some("C:/Users/Alice/Documents".to_string()),
                 ..Default::default()
@@ -2440,7 +2646,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
-            preferred_prefix: None,
+            prefixes: vec![],
             known_folders: Some(kf),
         };
         let result = game_file_target(
@@ -2476,7 +2682,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
-            preferred_prefix: None,
+            prefixes: vec![],
             known_folders: Some(kf),
         };
         let result = game_file_target(
@@ -2514,7 +2720,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
-            preferred_prefix: None,
+            prefixes: vec![],
             known_folders: Some(kf),
         };
         let result = game_file_target(
@@ -2547,7 +2753,7 @@ mod tests {
             wine_user: "steamuser".to_string(),
         };
         let ctx = semantic::Wine {
-            preferred_prefix: Some(prefix),
+            prefixes: vec![prefix],
             known_folders: None,
         };
         let sem = BackupSemantics::default(); // No Wine directories — uses heuristic
@@ -2580,7 +2786,7 @@ mod tests {
             wine_user: "steamuser".to_string(),
         };
         let ctx = semantic::Wine {
-            preferred_prefix: Some(prefix),
+            prefixes: vec![prefix],
             known_folders: None,
         };
         let sem = BackupSemantics::default();
@@ -2622,7 +2828,7 @@ mod tests {
             wine_user: "steamuser".to_string(),
         };
         let ctx = semantic::Wine {
-            preferred_prefix: Some(prefix),
+            prefixes: vec![prefix],
             known_folders: None,
         };
         let result = game_file_target(
@@ -2650,5 +2856,169 @@ mod tests {
             "should map through new prefix with new username: {}",
             path.raw()
         );
+    }
+
+    /// The bug this whole feature exists to fix: a Baldur's Gate 3 save pushed from a
+    /// Steam Deck (`deck` / compatdata 4110821628) must restore into the PC's own prefix
+    /// (`kookoo` / compatdata 2811670038), not the literal path it was stored under.
+    /// Paths and app IDs are the real ones from the reported bug.
+    #[test]
+    fn real_path_bg3_deck_to_pc() {
+        let deck_prefix = "/home/deck/.local/share/Steam/steamapps/compatdata/4110821628/pfx";
+        let pc_prefix = "/home/kookoo/.local/share/Steam/steamapps/compatdata/2811670038/pfx";
+        let stored = format!(
+            "{deck_prefix}/drive_c/users/steamuser/AppData/Local/Larian Studios/Baldur's Gate 3/\
+             PlayerProfiles/Public/Savegames/Story/Zazur-591212621627__Shattered Sanctum - 3h 48m/\
+             Shattered Sanctum - 3h 48m.lsv"
+        );
+
+        let sem = wine_semantics(deck_prefix);
+        let ctx = semantic::Wine {
+            prefixes: vec![semantic::Prefix {
+                path: StrictPath::new(pc_prefix),
+                wine_user: "steamuser".to_string(),
+            }],
+            known_folders: None,
+        };
+
+        let result = game_file_target(
+            &StrictPath::new(&stored),
+            &[],
+            false,
+            ScanKind::Restore,
+            Some(&sem),
+            Some(&ctx),
+        );
+
+        let path = result.expect("Wine->Wine with a recorded and a local prefix should redirect");
+        assert!(
+            path.raw().starts_with(pc_prefix),
+            "should land under the PC's own prefix: {}",
+            path.raw()
+        );
+        assert!(
+            !path.raw().contains("/home/deck"),
+            "must not contain the Deck's username or app ID: {}",
+            path.raw()
+        );
+        assert!(
+            !path.raw().contains("4110821628"),
+            "must not contain the Deck's compatdata app ID: {}",
+            path.raw()
+        );
+        assert!(
+            path.raw().contains(
+                "AppData/Local/Larian Studios/Baldur's Gate 3/PlayerProfiles/Public/Savegames/Story/\
+                 Zazur-591212621627__Shattered Sanctum - 3h 48m/Shattered Sanctum - 3h 48m.lsv"
+            ),
+            "should preserve the full save path under the new prefix: {}",
+            path.raw()
+        );
+    }
+
+    /// The reverse direction: PC push, Deck restore.
+    #[test]
+    fn real_path_bg3_pc_to_deck() {
+        let deck_prefix = "/home/deck/.local/share/Steam/steamapps/compatdata/4110821628/pfx";
+        let pc_prefix = "/home/kookoo/.local/share/Steam/steamapps/compatdata/2811670038/pfx";
+        let stored =
+            format!("{pc_prefix}/drive_c/users/steamuser/AppData/Local/Larian Studios/Baldur's Gate 3/save.lsv");
+
+        let sem = wine_semantics(pc_prefix);
+        let ctx = semantic::Wine {
+            prefixes: vec![semantic::Prefix {
+                path: StrictPath::new(deck_prefix),
+                wine_user: "steamuser".to_string(),
+            }],
+            known_folders: None,
+        };
+
+        let result = game_file_target(
+            &StrictPath::new(&stored),
+            &[],
+            false,
+            ScanKind::Restore,
+            Some(&sem),
+            Some(&ctx),
+        );
+
+        let path = result.expect("should redirect");
+        assert!(path.raw().starts_with(deck_prefix));
+        assert!(!path.raw().contains("kookoo"));
+        assert!(!path.raw().contains("2811670038"));
+    }
+
+    /// With two candidate local prefixes, the one that already has this game's save
+    /// directory should win over one that merely validates as a Wine prefix.
+    #[test]
+    fn picks_prefix_containing_existing_save_folder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().to_str().unwrap();
+
+        let old_prefix = format!("{root}/compatdata/1111111111/pfx");
+        let empty_candidate = format!("{root}/compatdata/2222222222/pfx");
+        let populated_candidate = format!("{root}/compatdata/3333333333/pfx");
+        let save_dir =
+            format!("{populated_candidate}/drive_c/users/steamuser/AppData/Local/Larian Studios/Baldur's Gate 3");
+        let _ = std::fs::create_dir_all(&save_dir);
+
+        let stored =
+            format!("{old_prefix}/drive_c/users/steamuser/AppData/Local/Larian Studios/Baldur's Gate 3/save.lsv");
+        let sem = wine_semantics(&old_prefix);
+        let ctx = semantic::Wine {
+            prefixes: vec![
+                semantic::Prefix {
+                    path: StrictPath::new(&empty_candidate),
+                    wine_user: "steamuser".to_string(),
+                },
+                semantic::Prefix {
+                    path: StrictPath::new(&populated_candidate),
+                    wine_user: "steamuser".to_string(),
+                },
+            ],
+            known_folders: None,
+        };
+
+        let result = game_file_target(
+            &StrictPath::new(&stored),
+            &[],
+            false,
+            ScanKind::Restore,
+            Some(&sem),
+            Some(&ctx),
+        );
+
+        let path = result.expect("should redirect");
+        assert!(
+            path.raw().starts_with(&populated_candidate),
+            "should prefer the prefix that already has this game's saves: {}",
+            path.raw()
+        );
+    }
+
+    /// A Wine backup with no local prefix at all must not write to the stored (foreign)
+    /// path silently - that's a bogus tree on this machine. (The refusal to actually
+    /// write it lives at the restore-orchestration layer; this confirms the redirect
+    /// layer correctly reports "no redirect" rather than fabricating one.)
+    #[test]
+    fn no_redirect_when_no_local_prefix() {
+        let sem = wine_semantics("/home/deck/.local/share/Steam/steamapps/compatdata/4110821628/pfx");
+        let ctx = semantic::Wine {
+            prefixes: vec![],
+            known_folders: None,
+        };
+
+        let result = game_file_target(
+            &StrictPath::new(
+                "/home/deck/.local/share/Steam/steamapps/compatdata/4110821628/pfx/drive_c/users/steamuser/save.lsv",
+            ),
+            &[],
+            false,
+            ScanKind::Restore,
+            Some(&sem),
+            Some(&ctx),
+        );
+
+        assert_eq!(None, result);
     }
 }

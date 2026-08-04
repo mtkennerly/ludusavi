@@ -20,7 +20,9 @@ use crate::{
         unregister_sigint,
     },
     report::{self, Reporter, report_cloud_changes},
-    resource::{ResourceFile, SaveableResourceFile, cache::Cache, config::Config, manifest::Manifest},
+    resource::{
+        ResourceFile, SaveableResourceFile, cache::Cache, config::Config, manifest::Manifest, sync_state::SyncStateFile,
+    },
     scan::{
         BackupId, DuplicateDetector, Launchers, OperationStepDecision, ScanKind, SteamShortcuts, TitleFinder,
         TitleQuery, layout::BackupLayout, prepare_backup_target, scan_game_for_backup, semantic,
@@ -142,7 +144,10 @@ fn resolve_single_game(config: &Config, cache: &mut Cache, game: String, api: bo
     let title_finder = TitleFinder::new(config, &manifest, layout.restorable_game_set());
 
     match evaluate_games(BTreeSet::new(), vec![game], &title_finder) {
-        Ok(games) => Ok(games.into_iter().next().expect("evaluate_games returned no games for a single request")),
+        Ok(games) => Ok(games
+            .into_iter()
+            .next()
+            .expect("evaluate_games returned no games for a single request")),
         Err(games) => {
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
             reporter.trip_unknown_games(games.clone());
@@ -302,11 +307,22 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
             }
 
+            let backup_sync_state = SyncStateFile::load_from(&config.backup.path);
+            let wine_env = semantic::WineEnvironment {
+                config: &config,
+                manifest: &manifest,
+                roots: &roots,
+                steam_shortcuts: &steam_shortcuts,
+                launchers: Some(&launchers),
+                cli_prefix: wine_prefix.as_ref(),
+                registry: Some(&backup_sync_state),
+            };
+
             let step = |i, name| {
                 log::trace!("step {i} / {}: {name}", games.len());
                 let game = &manifest.0[name];
 
-                let wine_ctx = semantic::Wine::for_game(name, &config);
+                let wine_ctx = semantic::Wine::for_game(name, &wine_env);
                 let previous = layout.latest_backup(
                     name,
                     ScanKind::Backup,
@@ -586,14 +602,62 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
             }
 
+            // Restore needs to know where this machine's Wine prefixes are, which the
+            // restore path never had to ask about before. Both scans are non-trivial
+            // (Steam VDF parse, root globbing), so only do them when remapping is on.
+            let (restore_roots, restore_shortcuts) = if config.scan.redirect_wine {
+                (config.expanded_roots(), SteamShortcuts::scan(&title_finder))
+            } else {
+                (vec![], SteamShortcuts::default())
+            };
+            let restore_sync_state = SyncStateFile::load_from(&config.backup.path);
+            let wine_env = semantic::WineEnvironment {
+                config: &config,
+                manifest: &manifest,
+                roots: &restore_roots,
+                steam_shortcuts: &restore_shortcuts,
+                launchers: None,
+                cli_prefix: None,
+                registry: Some(&restore_sync_state),
+            };
+
             let step = |i, name| {
                 log::trace!("step {i} / {}: {name}", games.len());
                 let mut layout = layout.game_layout(name);
+                let id = backup_id.as_ref().unwrap_or(&BackupId::Latest);
 
-                let wine_ctx = semantic::Wine::for_game(name, &config);
+                let wine_ctx = semantic::Wine::for_game(name, &wine_env);
+
+                // Refuse rather than silently write to the source device's literal path
+                // (e.g. `/home/deck/...` on a PC): the backup demonstrably needs a Wine
+                // prefix, and this machine doesn't have one for it.
+                if let Some((full, diff)) = layout.find_by_id(id) {
+                    let backup_semantics =
+                        crate::scan::layout::BackupSemantics::merged(&full.semantics, diff.map(|d| &d.semantics));
+                    if let Some(backup_prefix) = backup_semantics.wine_prefixes().into_iter().next()
+                        && wine_ctx.as_ref().is_none_or(|w| w.prefixes.is_empty())
+                    {
+                        log::error!("[{name}] no local Wine prefix found; backup recorded {backup_prefix}");
+                        let display_title = config.display_name(name);
+                        return Some((
+                            display_title,
+                            crate::scan::ScanInfo {
+                                game_name: name.to_string(),
+                                ..Default::default()
+                            },
+                            Default::default(),
+                            OperationStepDecision::Ignored,
+                            Some(Err(Error::WinePrefixNotFound {
+                                game: name.to_string(),
+                                backup_prefix,
+                            })),
+                        ));
+                    }
+                }
+
                 let scan_info = layout.scan_for_restoration(
                     name,
-                    backup_id.as_ref().unwrap_or(&BackupId::Latest),
+                    id,
                     &config.redirects,
                     config.restore.reverse_redirects,
                     &config.restore.toggled_paths,

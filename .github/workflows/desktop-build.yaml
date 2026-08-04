@@ -1,0 +1,60 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+name: Desktop AppImage Build
+
+jobs:
+  build-appimage:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: desktop-appimage
+
+      - name: Install system dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed \
+            webkit2gtk-4.1 base-devel curl wget file openssl \
+            appmenu-gtk-module libappindicator-gtk3 librsvg \
+            xdotool jq nodejs npm
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - uses: mtkennerly/dunamai-action@v1
+        with:
+          env-var: LUDUSAVI_VERSION
+          args: --style semver
+
+      - name: Inject version into tauri.conf.json
+        run: |
+          jq --arg v "$LUDUSAVI_VERSION" '.version = $v' \
+            desktop/src-tauri/tauri.conf.json > desktop/src-tauri/tauri.conf.json.tmp
+          mv desktop/src-tauri/tauri.conf.json.tmp desktop/src-tauri/tauri.conf.json
+
+      - name: Install JS dependencies
+        working-directory: desktop
+        run: pnpm install
+
+      - name: Build AppImage
+        working-directory: desktop
+        run: pnpm tauri build
+
+      - name: Upload AppImage to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop/src-tauri/target/release/bundle/appimage/*.AppImage

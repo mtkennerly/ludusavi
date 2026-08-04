@@ -429,6 +429,7 @@ impl Translator {
             }
             Error::CloudConflict => TRANSLATOR.prefix_error(&TRANSLATOR.cloud_synchronize_conflict()),
             Error::GameDidNotLaunch { why } => format!("{}\n\n{}", self.game_did_not_launch(), self.prefix_error(why)),
+            Error::WinePrefixNotFound { game, backup_prefix } => self.wine_prefix_not_found(game, backup_prefix),
         }
     }
 
@@ -880,6 +881,13 @@ impl Translator {
         let mut args = FluentArgs::new();
         args.set(PATH, source.render());
         translate_args("restoration-source-is-invalid", &args)
+    }
+
+    pub fn wine_prefix_not_found(&self, game: &str, backup_prefix: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(GAME, game);
+        args.set(PATH, backup_prefix);
+        translate_args("wine-prefix-not-found", &args)
     }
 
     pub fn registry_issue(&self) -> String {
