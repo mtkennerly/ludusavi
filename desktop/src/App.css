@@ -137,11 +137,14 @@ button {
 }
 
 .game-list li {
+  padding: 0.5em 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+.game-row {
   display: flex;
   align-items: center;
   gap: 0.5em;
-  padding: 0.5em 0;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
 }
 
 .star-button {
@@ -164,6 +167,43 @@ button {
 
 .game-status {
   font-size: 0.85em;
+  opacity: 0.75;
+}
+
+.sync-progress {
+  position: relative;
+  margin-top: 0.35em;
+  height: 10px;
+  border-radius: 5px;
+  background-color: rgba(128, 128, 128, 0.25);
+  overflow: hidden;
+}
+
+.sync-progress-fill {
+  height: 100%;
+  border-radius: 5px;
+  background-color: #396cd8;
+  transition: width 0.1s linear;
+}
+
+.sync-progress-indeterminate {
+  width: 40%;
+  animation: sync-progress-slide 1s ease-in-out infinite;
+}
+
+@keyframes sync-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.sync-progress-label {
+  display: block;
+  margin-top: 0.2em;
+  font-size: 0.8em;
   opacity: 0.75;
 }
 

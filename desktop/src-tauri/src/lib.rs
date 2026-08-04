@@ -12,8 +12,10 @@ use ludusavi::{
     prelude::{Cancel, Finality},
     report::ApiGame,
     resource::sync_state::GameSyncEntry,
+    sync::SyncProgress,
 };
 use serde::Serialize;
+use tauri::Emitter;
 
 /// `Ludusavi::load()` needs `manifest.yaml` to already exist (via `ludusavi manifest
 /// update` or a prior GUI/CLI run), so on a fresh checkout it can fail. Hold that as
@@ -58,12 +60,36 @@ fn with_ludusavi_mut<T>(
     f(ludusavi)
 }
 
+/// Live progress of a `sync_push`/`sync_pull`, streamed to the webview as
+/// `"sync-progress"` events so the UI can show a per-game progress bar.
+#[derive(Clone, Serialize)]
+struct SyncProgressEvent {
+    game: String,
+    current: f32,
+    total: f32,
+}
+
 /// Push a single game's local backup to the cloud (additive - never deletes other games).
 #[tauri::command]
-async fn sync_push(game: String, preview: bool, state: tauri::State<'_, AppState>) -> Result<usize, String> {
+async fn sync_push(
+    app: tauri::AppHandle,
+    game: String,
+    preview: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, String> {
     with_ludusavi(&state, |l| {
         let finality = if preview { Finality::Preview } else { Finality::Final };
-        l.sync_push(&game, finality)
+        let mut on_progress = |p: SyncProgress| {
+            let _ = app.emit(
+                "sync-progress",
+                SyncProgressEvent {
+                    game: game.clone(),
+                    current: p.current,
+                    total: p.max,
+                },
+            );
+        };
+        l.sync_push(&game, finality, Some(&mut on_progress))
             .map(|r| r.changes.len())
             .map_err(|e| format!("{e:?}"))
     })
@@ -71,10 +97,25 @@ async fn sync_push(game: String, preview: bool, state: tauri::State<'_, AppState
 
 /// Pull a single game's backup from the cloud (additive - never deletes local data).
 #[tauri::command]
-async fn sync_pull(game: String, preview: bool, state: tauri::State<'_, AppState>) -> Result<usize, String> {
+async fn sync_pull(
+    app: tauri::AppHandle,
+    game: String,
+    preview: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, String> {
     with_ludusavi(&state, |l| {
         let finality = if preview { Finality::Preview } else { Finality::Final };
-        l.sync_pull(&game, finality)
+        let mut on_progress = |p: SyncProgress| {
+            let _ = app.emit(
+                "sync-progress",
+                SyncProgressEvent {
+                    game: game.clone(),
+                    current: p.current,
+                    total: p.max,
+                },
+            );
+        };
+        l.sync_pull(&game, finality, Some(&mut on_progress))
             .map(|r| r.changes.len())
             .map_err(|e| format!("{e:?}"))
     })

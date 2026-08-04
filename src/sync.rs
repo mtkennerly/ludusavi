@@ -19,15 +19,36 @@ pub struct SyncResult {
     pub error: Option<Error>,
 }
 
+/// Live progress of the rclone transfer behind a push or pull.
+#[derive(Clone, Copy, Debug)]
+pub struct SyncProgress {
+    pub current: f32,
+    pub max: f32,
+}
+
 /// Wait for an rclone process to complete, collecting changes.
 /// Includes a small sleep to avoid CPU spin.
-fn wait_for_rclone(process: &mut crate::cloud::RcloneProcess) -> Result<Vec<CloudChange>, Error> {
+///
+/// Whenever `on_progress` is set, it is invoked once up front (with a zeroed
+/// [`SyncProgress`]) so a UI can show "starting" before the first stats line
+/// arrives, then on every progress report rclone emits.
+fn wait_for_rclone(
+    process: &mut crate::cloud::RcloneProcess,
+    mut on_progress: Option<&mut dyn FnMut(SyncProgress)>,
+) -> Result<Vec<CloudChange>, Error> {
     let mut changes = vec![];
+    if let Some(f) = on_progress.as_mut() {
+        f(SyncProgress { current: 0.0, max: 0.0 });
+    }
     loop {
         let events = process.events();
         for event in events {
             match event {
-                RcloneProcessEvent::Progress { .. } => {}
+                RcloneProcessEvent::Progress { current, max } => {
+                    if let Some(f) = on_progress.as_mut() {
+                        f(SyncProgress { current, max });
+                    }
+                }
                 RcloneProcessEvent::Change(change) => {
                     changes.push(change);
                 }
@@ -60,7 +81,7 @@ fn upload_sync_state(rclone: &Rclone, backup_dir: &StrictPath, cloud_path: &str,
             return;
         }
     };
-    if let Err(e) = wait_for_rclone(&mut process) {
+    if let Err(e) = wait_for_rclone(&mut process, None) {
         log::error!("Failed to upload settings.config: {:?}", e);
     }
 }
@@ -99,7 +120,7 @@ fn fetch_cloud_sync_state(
                 &[SyncStateFile::FILE_NAME.to_string()],
             )
             .map_err(|e| format!("failed to start download: {e:?}"))?;
-        wait_for_rclone(&mut process).map_err(|e| format!("download failed: {e:?}"))?;
+        wait_for_rclone(&mut process, None).map_err(|e| format!("download failed: {e:?}"))?;
 
         if !staging.joined(SyncStateFile::FILE_NAME).is_file() {
             // Cloud has no state file yet; nothing to merge.
@@ -172,6 +193,7 @@ pub fn push_game(
     cloud_path: &str,
     game_name: &str,
     finality: Finality,
+    on_progress: Option<&mut dyn FnMut(SyncProgress)>,
 ) -> Result<SyncResult, Error> {
     log::info!("pushing game: {}", game_name);
 
@@ -195,7 +217,7 @@ pub fn push_game(
         Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
     };
 
-    let changes = wait_for_rclone(&mut process)?;
+    let changes = wait_for_rclone(&mut process, on_progress)?;
 
     // Update local settings.config and upload to cloud.
     if !finality.preview() {
@@ -237,6 +259,7 @@ pub fn pull_game(
     cloud_path: &str,
     game_name: &str,
     finality: Finality,
+    on_progress: Option<&mut dyn FnMut(SyncProgress)>,
 ) -> Result<SyncResult, Error> {
     log::info!("pulling game: {}", game_name);
 
@@ -271,7 +294,7 @@ pub fn pull_game(
         Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
     };
 
-    let changes = wait_for_rclone(&mut process)?;
+    let changes = wait_for_rclone(&mut process, on_progress)?;
 
     if !finality.preview()
         && let Some(info) = sync_state.game_info(game_name)

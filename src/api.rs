@@ -642,7 +642,12 @@ impl Ludusavi {
 
     /// Push a single game's local backup to the cloud.
     /// Additive on the destination - never deletes another game's cloud data.
-    pub fn sync_push(&self, game: &str, finality: Finality) -> Result<crate::sync::SyncResult, Error> {
+    pub fn sync_push(
+        &self,
+        game: &str,
+        finality: Finality,
+        on_progress: Option<&mut dyn FnMut(crate::sync::SyncProgress)>,
+    ) -> Result<crate::sync::SyncResult, Error> {
         let Some(game) = self.title_finder.find_one_by_name(game) else {
             return Err(Error::GameIsUnrecognized);
         };
@@ -652,12 +657,18 @@ impl Ludusavi {
             &self.config.cloud.path,
             &game,
             finality,
+            on_progress,
         )
     }
 
     /// Pull a single game's backup from the cloud.
     /// Additive on the destination - never deletes local data for another game.
-    pub fn sync_pull(&self, game: &str, finality: Finality) -> Result<crate::sync::SyncResult, Error> {
+    pub fn sync_pull(
+        &self,
+        game: &str,
+        finality: Finality,
+        on_progress: Option<&mut dyn FnMut(crate::sync::SyncProgress)>,
+    ) -> Result<crate::sync::SyncResult, Error> {
         let Some(game) = self.title_finder.find_one_by_name(game) else {
             return Err(Error::GameIsUnrecognized);
         };
@@ -667,6 +678,7 @@ impl Ludusavi {
             &self.config.cloud.path,
             &game,
             finality,
+            on_progress,
         )
     }
 
