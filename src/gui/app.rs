@@ -110,6 +110,7 @@ pub struct App {
     timed_notification: Option<Notification>,
     scroll_offsets: HashMap<ScrollSubject, scrollable::AbsoluteOffset>,
     text_histories: TextHistories,
+    active_text_input: Option<(UndoSubject, usize)>,
     rclone_monitor_sender: Option<iced::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
     exiting: bool,
     pending_save: HashMap<SaveKind, Instant>,
@@ -1515,6 +1516,47 @@ impl App {
                     self.timed_notification = None;
                 }
                 Task::none()
+            }
+            Message::TextInputCursorChanged { subject, position } => {
+                self.active_text_input = Some((subject, position));
+                Task::none()
+            }
+            Message::InsertPlaceholder { subject, placeholder } => {
+                let (game_index, file_index) = match &subject {
+                    UndoSubject::CustomGameFile(game_index, file_index) => (*game_index, *file_index),
+                    _ => return Task::none(),
+                };
+                let Some(current) = self
+                    .config
+                    .custom_games
+                    .get(game_index)
+                    .and_then(|game| game.files.get(file_index))
+                else {
+                    return Task::none();
+                };
+
+                let value = iced::widget::text_input::Value::new(current);
+                let position = self
+                    .active_text_input
+                    .as_ref()
+                    .filter(|(active, _)| active == &subject)
+                    .map(|(_, position)| *position)
+                    .unwrap_or_else(|| value.len())
+                    .min(value.len());
+                let updated = format!(
+                    "{}{}{}",
+                    value.until(position),
+                    placeholder,
+                    value.select(position, value.len()),
+                );
+                let cursor_position = position + iced::widget::text_input::Value::new(&placeholder).len();
+
+                self.text_histories.custom_games[game_index].files[file_index].push(&updated);
+                self.config.custom_games[game_index].files[file_index] = updated;
+                self.active_text_input = Some((subject.clone(), cursor_position));
+                self.save_config();
+
+                iced::widget::operation::move_cursor_to(subject.input_id(), cursor_position)
             }
             Message::Config { event } => {
                 let mut task = None;

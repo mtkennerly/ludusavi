@@ -18,7 +18,7 @@ use crate::{
     resource::{
         cache::Cache,
         config::{self, Config, CustomGameKind, Integration, RedirectKind, SecondaryManifestConfigKind},
-        manifest::{Manifest, Store},
+        manifest::{Manifest, Store, placeholder},
     },
 };
 
@@ -452,6 +452,19 @@ pub fn custom_games<'a>(
                                                         x.files.len(),
                                                     ))
                                                     .push(histories.input(UndoSubject::CustomGameFile(i, ii)))
+                                                    .push(
+                                                        crate::gui::popup_menu::PopupMenu::new(
+                                                            placeholder::ALL,
+                                                            move |placeholder| Message::InsertPlaceholder {
+                                                                subject: UndoSubject::CustomGameFile(i, ii),
+                                                                placeholder: placeholder.to_string(),
+                                                            },
+                                                        )
+                                                        .width(70)
+                                                        .class(style::PickList::Button)
+                                                        .open_on_hover()
+                                                        .button_like(),
+                                                    )
                                                     .push(button::choose_folder(
                                                         BrowseSubject::CustomGameFile(i, ii),
                                                         modifiers,
