@@ -509,6 +509,7 @@ pub enum PickList {
     Primary,
     Backup,
     Popup,
+    Button,
 }
 impl pick_list::Catalog for Theme {
     type Class<'a> = PickList;
@@ -520,23 +521,50 @@ impl pick_list::Catalog for Theme {
     fn style(&self, class: &<Self as pick_list::Catalog>::Class<'_>, status: pick_list::Status) -> pick_list::Style {
         let active = pick_list::Style {
             border: Border {
-                color: self.text.alpha(0.7),
-                width: 1.0,
+                color: match class {
+                    PickList::Button => Color::TRANSPARENT,
+                    _ => self.text.alpha(0.7),
+                },
+                width: match class {
+                    PickList::Button => 0.0,
+                    _ => 1.0,
+                },
                 radius: match class {
                     PickList::Primary => 5.0.into(),
                     PickList::Backup | PickList::Popup => 10.0.into(),
+                    PickList::Button => 4.0.into(),
                 },
             },
-            background: self.field.alpha(0.6).into(),
-            text_color: self.text,
+            background: match class {
+                PickList::Button => self.positive.into(),
+                _ => self.field.alpha(0.6).into(),
+            },
+            text_color: match class {
+                PickList::Button => self.text_button.alpha(0.8),
+                _ => self.text,
+            },
             placeholder_color: iced::Color::BLACK,
-            handle_color: self.text,
+            handle_color: match class {
+                PickList::Button => self.text_button.alpha(0.8),
+                _ => self.text,
+            },
         };
 
         match status {
             pick_list::Status::Active => active,
             pick_list::Status::Hovered => pick_list::Style {
-                background: self.field.into(),
+                background: match class {
+                    PickList::Button => self.positive.into(),
+                    _ => self.field.into(),
+                },
+                text_color: match class {
+                    PickList::Button => self.text_button,
+                    _ => active.text_color,
+                },
+                handle_color: match class {
+                    PickList::Button => self.text_button,
+                    _ => active.handle_color,
+                },
                 ..active
             },
             pick_list::Status::Opened { .. } => active,

@@ -113,6 +113,14 @@ pub enum Message {
     CloseModal,
     UpdateTime,
     PruneNotifications,
+    TextInputCursorChanged {
+        subject: UndoSubject,
+        position: usize,
+    },
+    InsertPlaceholder {
+        subject: UndoSubject,
+        placeholder: String,
+    },
     Config {
         event: config::Event,
     },
@@ -721,6 +729,10 @@ pub enum UndoSubject {
 }
 
 impl UndoSubject {
+    pub fn input_id(&self) -> iced::widget::Id {
+        format!("text-input-{self:?}").into()
+    }
+
     pub fn privacy(&self) -> Privacy {
         match self {
             UndoSubject::BackupTarget

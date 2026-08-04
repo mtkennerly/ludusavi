@@ -23,6 +23,7 @@ where
 {
     content: Element<'a, Message, Theme, Renderer>,
     on_change: F,
+    on_cursor: Box<dyn Fn(usize) -> Message + 'a>,
 }
 
 impl<'a, Message, Theme, Renderer, F> Undoable<'a, Message, Theme, Renderer, F>
@@ -30,13 +31,14 @@ where
     Message: Clone,
     F: Fn(Action) -> Message + 'a,
 {
-    pub fn new<T>(content: T, on_change: F) -> Self
+    pub fn new<T>(content: T, on_change: F, on_cursor: impl Fn(usize) -> Message + 'a) -> Self
     where
         T: Into<Element<'a, Message, Theme, Renderer>>,
     {
         Self {
             content: content.into(),
             on_change,
+            on_cursor: Box::new(on_cursor),
         }
     }
 }
@@ -110,7 +112,25 @@ where
 
         self.content
             .as_widget_mut()
-            .update(tree, event, layout, cursor, renderer, clipboard, shell, viewport)
+            .update(tree, event, layout, cursor, renderer, clipboard, shell, viewport);
+
+        if matches!(
+            event,
+            Event::Keyboard(_) | Event::Mouse(mouse::Event::ButtonPressed(_) | mouse::Event::ButtonReleased(_))
+        ) {
+            let state = tree
+                .state
+                .downcast_ref::<iced::widget::text_input::State<Renderer::Paragraph>>();
+            if state.is_focused() {
+                let value =
+                    iced::widget::text_input::Value::new(iced::advanced::widget::operation::TextInput::text(state));
+                let position = match state.cursor().state(&value) {
+                    iced::widget::text_input::cursor::State::Index(position) => position,
+                    iced::widget::text_input::cursor::State::Selection { end, .. } => end,
+                };
+                shell.publish((self.on_cursor)(position));
+            }
+        }
     }
 
     fn mouse_interaction(

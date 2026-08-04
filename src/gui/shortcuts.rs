@@ -502,12 +502,14 @@ impl TextHistories {
             | UndoSubject::BackupComment(_) => None,
         };
 
-        let id = match &subject {
-            UndoSubject::BackupSearchGameName => Some(id::backup_search()),
-            UndoSubject::RestoreSearchGameName => Some(id::restore_search()),
-            UndoSubject::CustomGamesSearchGameName => Some(id::custom_games_search()),
-            _ => None,
+        let input_id = match &subject {
+            UndoSubject::BackupSearchGameName => id::backup_search(),
+            UndoSubject::RestoreSearchGameName => id::restore_search(),
+            UndoSubject::CustomGamesSearchGameName => id::custom_games_search(),
+            _ => subject.input_id(),
         };
+        let undo_subject = subject.clone();
+        let cursor_subject = subject.clone();
 
         Undoable::new(
             {
@@ -525,13 +527,13 @@ impl TextHistories {
                     input = input.secure(true);
                 }
 
-                if let Some(id) = id {
-                    input = input.id(id);
-                }
-
-                input
+                input.id(input_id)
             },
-            move |action| Message::UndoRedo(action, subject.clone()),
+            move |action| Message::UndoRedo(action, undo_subject.clone()),
+            move |position| Message::TextInputCursorChanged {
+                subject: cursor_subject.clone(),
+                position,
+            },
         )
         .into()
     }

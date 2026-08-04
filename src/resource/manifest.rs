@@ -28,6 +28,25 @@ pub mod placeholder {
     pub const WIN_DIR: &str = "<winDir>";
     pub const XDG_DATA: &str = "<xdgData>";
     pub const XDG_CONFIG: &str = "<xdgConfig>";
+
+    pub const ALL: &[&str] = &[
+        ROOT,
+        GAME,
+        BASE,
+        HOME,
+        STORE_GAME_ID,
+        STORE_USER_ID,
+        OS_USER_NAME,
+        WIN_APP_DATA,
+        WIN_LOCAL_APP_DATA,
+        WIN_LOCAL_APP_DATA_LOW,
+        WIN_DOCUMENTS,
+        WIN_PUBLIC,
+        WIN_PROGRAM_DATA,
+        WIN_DIR,
+        XDG_DATA,
+        XDG_CONFIG,
+    ];
 }
 
 #[derive(

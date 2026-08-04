@@ -2,7 +2,7 @@
 // https://github.com/iced-rs/iced/blob/0.5.0/native/src/widget/pick_list.rs
 
 //! Display a dropdown list of selectable values.
-use std::borrow::Cow;
+use std::{borrow::Cow, cell::Cell};
 
 pub use iced::widget::pick_list::{Catalog, Status};
 use iced::{
@@ -34,6 +34,8 @@ where
     font: Option<Renderer::Font>,
     style: <Theme as Catalog>::Class<'a>,
     menu_style: <Theme as menu::Catalog>::Class<'a>,
+    open_on_hover: bool,
+    button_like: bool,
     last_status: Option<Status>,
 }
 
@@ -59,6 +61,8 @@ where
             font: None,
             style: <Theme as Catalog>::default(),
             menu_style: <Theme as menu::Catalog>::default(),
+            open_on_hover: false,
+            button_like: false,
             last_status: None,
         }
     }
@@ -78,6 +82,18 @@ where
     /// Sets the style of the [`Menu`].
     pub fn menu_class(mut self, style: impl Into<<Theme as menu::Catalog>::Class<'a>>) -> Self {
         self.menu_style = style.into();
+        self
+    }
+
+    /// Opens the menu when the pointer hovers over it.
+    pub fn open_on_hover(mut self) -> Self {
+        self.open_on_hover = true;
+        self
+    }
+
+    /// Draws the menu trigger like a standard primary button.
+    pub fn button_like(mut self) -> Self {
+        self.button_like = true;
         self
     }
 }
@@ -126,7 +142,9 @@ where
                 .expand(self.padding)
         };
 
-        layout::Node::new(Size::new(size.width, 24.0))
+        let height = if self.button_like { 30.0 } else { 24.0 };
+
+        layout::Node::new(Size::new(size.width, height))
     }
 
     fn update(
@@ -143,16 +161,20 @@ where
         let state = tree.state.downcast_mut::<State<T>>();
 
         match event {
+            Event::Mouse(mouse::Event::CursorMoved { .. }) if self.open_on_hover && cursor.is_over(layout.bounds()) => {
+                state.is_open.set(!self.options.is_empty());
+                shell.capture_event();
+            }
             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
             | Event::Touch(touch::Event::FingerPressed { .. }) => {
-                if state.is_open {
+                if state.is_open.get() {
                     // Event wasn't processed by overlay, so cursor was clicked either outside its
                     // bounds or on the drop-down, either way we close the overlay.
-                    state.is_open = false;
+                    state.is_open.set(false);
 
                     shell.capture_event();
                 } else if cursor.is_over(layout.bounds()) {
-                    state.is_open = !self.options.is_empty();
+                    state.is_open.set(!self.options.is_empty());
 
                     shell.capture_event();
                 }
@@ -160,13 +182,13 @@ where
                 if let Some(last_selection) = state.last_selection.take() {
                     shell.publish((self.on_selected.as_ref())(last_selection));
 
-                    state.is_open = false;
+                    state.is_open.set(false);
 
                     shell.capture_event();
                 }
             }
             Event::Mouse(mouse::Event::WheelScrolled { .. }) | Event::Touch(touch::Event::FingerMoved { .. }) => {
-                state.is_open = false;
+                state.is_open.set(false);
             }
             _ => {}
         }
@@ -174,7 +196,7 @@ where
         let status = {
             let is_hovered = cursor.is_over(layout.bounds());
 
-            if state.is_open {
+            if state.is_open.get() {
                 Status::Opened { is_hovered }
             } else if is_hovered {
                 Status::Hovered
@@ -225,7 +247,7 @@ where
 
         let style = <Theme as Catalog>::style(theme, &self.style, status);
 
-        if is_mouse_over {
+        if self.button_like || is_mouse_over {
             renderer.fill_quad(
                 renderer::Quad {
                     bounds,
@@ -235,9 +257,12 @@ where
                         radius: style.border.radius,
                     },
                     shadow: Shadow {
-                        color: iced::Color::BLACK,
-                        offset: Vector::ZERO,
-                        blur_radius: 0.0,
+                        offset: if self.button_like {
+                            Vector::new(1.0, if is_mouse_over { 2.0 } else { 1.0 })
+                        } else {
+                            Vector::ZERO
+                        },
+                        ..Shadow::default()
                     },
                     snap: true,
                 },
@@ -245,12 +270,11 @@ where
             );
         }
 
-        let icon_size = 0.5;
         renderer.fill_text(
             advanced::Text {
                 content: crate::gui::icon::Icon::MoreVert.as_char().to_string(),
                 font: crate::gui::font::ICONS,
-                size: (bounds.height * icon_size * 1.5).into(),
+                size: 20.0.into(),
                 bounds: Size {
                     width: bounds.width,
                     height: bounds.height,
@@ -277,7 +301,7 @@ where
     ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
         let state = tree.state.downcast_mut::<State<T>>();
 
-        if state.is_open {
+        if state.is_open.get() {
             let bounds = layout.bounds();
 
             let mut menu = Menu::new(
@@ -285,7 +309,7 @@ where
                 &self.options,
                 &mut state.hovered_option,
                 |option| {
-                    state.is_open = false;
+                    state.is_open.set(false);
 
                     (self.on_selected)(option)
                 },
@@ -301,12 +325,28 @@ where
                 menu = menu.text_size(text_size);
             }
 
-            Some(menu.overlay(
+            let overlay = menu.overlay(
                 layout.position() + translation,
                 *viewport,
                 bounds.height,
                 Length::Shrink,
-            ))
+            );
+
+            if self.open_on_hover {
+                let trigger_bounds = Rectangle {
+                    x: bounds.x + translation.x,
+                    y: bounds.y + translation.y,
+                    ..bounds
+                };
+
+                Some(overlay::Element::new(Box::new(HoverOverlay {
+                    content: overlay,
+                    trigger_bounds,
+                    is_open: &state.is_open,
+                })))
+            } else {
+                Some(overlay)
+            }
         } else {
             None
         }
@@ -327,11 +367,84 @@ where
     }
 }
 
+/// Closes a hover-opened menu once the pointer leaves both the trigger and menu.
+struct HoverOverlay<'a, Message, Theme, Renderer>
+where
+    Renderer: renderer::Renderer,
+{
+    content: overlay::Element<'a, Message, Theme, Renderer>,
+    trigger_bounds: Rectangle,
+    is_open: &'a Cell<bool>,
+}
+
+impl<Message, Theme, Renderer> advanced::Overlay<Message, Theme, Renderer>
+    for HoverOverlay<'_, Message, Theme, Renderer>
+where
+    Renderer: renderer::Renderer,
+{
+    fn layout(&mut self, renderer: &Renderer, bounds: Size) -> layout::Node {
+        self.content.as_overlay_mut().layout(renderer, bounds)
+    }
+
+    fn operate(&mut self, layout: Layout<'_>, renderer: &Renderer, operation: &mut dyn advanced::widget::Operation) {
+        self.content.as_overlay_mut().operate(layout, renderer, operation);
+    }
+
+    fn update(
+        &mut self,
+        event: &Event,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        renderer: &Renderer,
+        clipboard: &mut dyn Clipboard,
+        shell: &mut Shell<'_, Message>,
+    ) {
+        self.content
+            .as_overlay_mut()
+            .update(event, layout, cursor, renderer, clipboard, shell);
+
+        if matches!(event, Event::Mouse(mouse::Event::CursorMoved { .. }))
+            && !cursor.is_over(self.trigger_bounds)
+            && !cursor.is_over(layout.bounds())
+            && self.is_open.replace(false)
+        {
+            shell.request_redraw();
+        }
+    }
+
+    fn mouse_interaction(&self, layout: Layout<'_>, cursor: mouse::Cursor, renderer: &Renderer) -> mouse::Interaction {
+        self.content.as_overlay().mouse_interaction(layout, cursor, renderer)
+    }
+
+    fn draw(
+        &self,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        style: &renderer::Style,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+    ) {
+        self.content.as_overlay().draw(renderer, theme, style, layout, cursor);
+    }
+
+    fn overlay<'b>(
+        &'b mut self,
+        layout: Layout<'b>,
+        renderer: &Renderer,
+    ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
+        self.content.as_overlay_mut().overlay(layout, renderer)
+    }
+
+    fn index(&self) -> f32 {
+        self.content.as_overlay().index()
+    }
+}
+
 /// The local state of a [`PopupMenu`].
 #[derive(Debug)]
 pub struct State<T> {
     menu: menu::State,
-    is_open: bool,
+    is_open: Cell<bool>,
     hovered_option: Option<usize>,
     last_selection: Option<T>,
 }
@@ -341,7 +454,7 @@ impl<T> State<T> {
     pub fn new() -> Self {
         Self {
             menu: menu::State::default(),
-            is_open: bool::default(),
+            is_open: Cell::new(false),
             hovered_option: Option::default(),
             last_selection: Option::default(),
         }
