@@ -16,9 +16,10 @@ The original plan below (Phases 1-3) built a Rust-native iced GUI with game card
 
 Sequencing:
 1. **Done** — strip iced GUI, go CLI-only, give `sync.rs` real callers (`cli.rs`'s `sync push|pull|status` subcommand, `api.rs`'s `Ludusavi::sync_push`/`sync_pull`/`sync_status`).
-2. **Next** — scaffold a Tauri app; frontend in React; Tauri `#[tauri::command]` handlers wrap `api.rs::Ludusavi` methods (the same ones the CLI now uses), not a reimplementation.
+2. **Done** — Tauri app scaffolded at `desktop/` (React+TS frontend, `pnpm`). `desktop/src-tauri` depends on the root crate as a path dependency (`ludusavi = { path = "../..", default-features = false }` — no `app` feature, so no clap/rfd/dialoguer in the Tauri backend's dep tree). `desktop/src-tauri/src/lib.rs` exposes `sync_push`/`sync_pull`/`sync_status`/`enabled_games` Tauri commands, thin wrappers over `api.rs::Ludusavi` (same methods the CLI's `sync` subcommand calls) — `Ludusavi::load()` happens once at startup into managed state (`Option<Mutex<Ludusavi>>`, `None` if `manifest.yaml` isn't present yet, so a fresh checkout doesn't crash the window on launch). `desktop/src/App.tsx` is a minimal proof-of-wiring list (enabled games + push/pull/status buttons), not the final game-card UI.
+3. **Next** — replace `App.tsx`'s placeholder list with the real game-card UI (the one `src/gui/game_card.rs` used to render): per-game push/pull buttons, sync-state badges (`NotSynced`/`LocalOnly`/`Synced`/`CloudNewer`/`LocalNewer`), "sync all enabled" batch action, live rclone progress. Consider a `list_games`/`game_cards` Tauri command in `lib.rs` that returns richer per-game state in one call, mirroring what `GameCard::new` used to compute, rather than the frontend stitching together several round trips.
 
-When picking up GUI work again: build the new Tauri frontend against `api.rs`, not against `sync.rs`/`cloud.rs` directly, and don't recreate `src/gui/`.
+When picking up GUI work again: build the new Tauri frontend against `api.rs`, not against `sync.rs`/`cloud.rs` directly, and don't recreate `src/gui/`. Run it with `cd desktop && pnpm install && pnpm tauri dev`.
 
 ### Original Target State (superseded by the pivot above, kept for history)
 - **UI**: Single "Sync" screen with game cards (Steam Deck optimized: 48px+ buttons, larger fonts) — this was the iced GUI's design; the same card-based UX is still the goal, just rebuilt in the Tauri frontend instead.

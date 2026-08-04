@@ -10,7 +10,9 @@ A fork of [ludusavi](https://github.com/mtkennerly/ludusavi) (game save backup t
 
 Upstream files (`CHANGELOG.md`, `docs/`, `lang/*.ftl`, `tasks.py` release tasks) describe the original project, not the fork.
 
-**The GUI is gone (deliberately).** The original iced-based GUI (`src/gui/`, `src/gui.rs`) was stripped in favor of CLI-only for now; a new frontend is planned as a Tauri app (JS/HTML frontend, Rust backend calling straight into this crate — see `api.rs`), not another Rust-native GUI toolkit. Don't resurrect `iced`/`rfd` dialogs or an `mod gui` as the "obvious" way to add UI — the CLI and `api.rs` are the intended integration points now.
+**The GUI is gone (deliberately).** The original iced-based GUI (`src/gui/`, `src/gui.rs`) was stripped in favor of CLI-only, then rebuilt as a Tauri app instead of another Rust-native GUI toolkit. Don't resurrect `iced`/`rfd` dialogs or an `mod gui` in this crate — the CLI and `api.rs` are the integration points for the root crate; new frontend work belongs in `desktop/`.
+
+`desktop/` is a separate Tauri project (React+TS, `pnpm`) that depends on this crate as a path dependency with `default-features = false` (see `desktop/src-tauri/Cargo.toml`) — no `app` feature, so no clap/rfd/dialoguer pulled into the GUI backend. Its `#[tauri::command]` handlers (`desktop/src-tauri/src/lib.rs`) wrap `api.rs::Ludusavi` directly, the same struct the CLI's `sync` subcommand uses — extend that struct's methods rather than reaching into `sync.rs`/`cloud.rs` from Tauri code. Run it with `cd desktop && pnpm install && pnpm tauri dev`. See `AGENTS.md`'s "Frontend Pivot" section for the full sequencing/rationale.
 
 ## Commands
 
