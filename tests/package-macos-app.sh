@@ -24,8 +24,8 @@ test "$(readlink "$staging_dir/ludusavi")" = "Ludusavi.app/Contents/MacOS/Ludusa
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$plist")" = "Ludusavi"
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = "com.mtkennerly.ludusavi"
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" = "1.2.3"
-test "$(tar --list --gzip --file="$archive" | rg '^Ludusavi\.app/Contents/MacOS/Ludusavi$')" = "Ludusavi.app/Contents/MacOS/Ludusavi"
-test "$(tar --list --gzip --file="$archive" | rg '^ludusavi$')" = "ludusavi"
+test "$(tar --list --gzip --file="$archive" | /usr/bin/grep -x 'Ludusavi.app/Contents/MacOS/Ludusavi')" = "Ludusavi.app/Contents/MacOS/Ludusavi"
+test "$(tar --list --gzip --file="$archive" | /usr/bin/grep -x 'ludusavi')" = "ludusavi"
 
 extracted_dir="$temp_dir/extracted"
 mkdir "$extracted_dir"
