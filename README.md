@@ -39,6 +39,8 @@ If you'd like to help translate Ludusavi into other languages,
 Download the executable for Windows, Linux, or Mac from the
 [releases page](https://github.com/mtkennerly/ludusavi/releases).
 It's portable, so you can simply download it and put it anywhere on your system.
+On Mac, extract the archive and open `Ludusavi.app` like any other application.
+The included `ludusavi` link can still be used from the terminal.
 
 If you prefer, Ludusavi is also available via
 [Winget, Scoop, Flatpak, and Cargo](docs/help/installation.md).
