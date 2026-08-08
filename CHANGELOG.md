@@ -1,6 +1,8 @@
 ## Unreleased
 
 * Added:
+  * The Mac download now includes `Ludusavi.app` for standard application launching,
+    alongside a `ludusavi` command-line link.
   * Ludusavi can now translate native Windows paths into Wine prefixes and vice versa.
     During a scan, these will appear like any other redirected path.
     This is supported for Wine specifically, not any other native Linux paths.

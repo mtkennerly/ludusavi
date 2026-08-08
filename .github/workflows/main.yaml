@@ -50,7 +50,16 @@ jobs:
       - if: ${{ startsWith(matrix.os, 'ubuntu-') }}
         run: sudo apt-get update && sudo apt-get install -y gcc libxcb-composite0-dev libgtk-3-dev
       - run: cargo build --release
-      - if: ${{ matrix.tar }}
+      - if: ${{ matrix.artifact-name == 'mac' }}
+        run: bash tests/package-macos-app.sh
+      - if: ${{ matrix.artifact-name == 'mac' }}
+        run: >
+          scripts/package-macos-app.sh
+          target/release/${{ matrix.artifact-file }}
+          ${{ env.LUDUSAVI_VERSION }}
+          target/release/ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}
+          target/release/ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}.tar.gz
+      - if: ${{ matrix.tar && matrix.artifact-name != 'mac' }}
         run: |
           cd target/release
           tar --create --gzip --file=ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}.tar.gz ${{ matrix.artifact-file }}
