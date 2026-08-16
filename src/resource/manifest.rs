@@ -699,6 +699,38 @@ impl Manifest {
         }
     }
 
+    fn escape_glob_brackets(path: String) -> String {
+        let chars: Vec<char> = path.chars().collect();
+        let mut out = String::with_capacity(chars.len() + 8);
+        let mut i = 0;
+        while i < chars.len() {
+            match chars[i] {
+                // Already-escaped sequences are copied as-is (idempotent).
+                '[' if i + 2 < chars.len() && chars[i + 1] == '[' && chars[i + 2] == ']' => {
+                    out.push_str("[[]");
+                    i += 3;
+                }
+                '[' if i + 2 < chars.len() && chars[i + 1] == ']' && chars[i + 2] == ']' => {
+                    out.push_str("[]]");
+                    i += 3;
+                }
+                '[' => {
+                    out.push_str("[[]");
+                    i += 1;
+                }
+                ']' => {
+                    out.push_str("[]]");
+                    i += 1;
+                }
+                c => {
+                    out.push(c);
+                    i += 1;
+                }
+            }
+        }
+        out
+    }
+
     pub fn add_custom_game(&mut self, custom: CustomGame) {
         use crate::resource::config::Integration;
 
@@ -709,7 +741,7 @@ impl Manifest {
                     stored.files = custom
                         .files
                         .into_iter()
-                        .map(|x| (x, GameFileEntry::default()))
+                        .map(|x| (Self::escape_glob_brackets(x), GameFileEntry::default()))
                         .collect();
                     stored.registry = custom
                         .registry
@@ -731,7 +763,7 @@ impl Manifest {
                 Integration::Extend => {
                     stored.alias = custom.alias;
                     for item in custom.files {
-                        stored.files.entry(item).or_default();
+                        stored.files.entry(Self::escape_glob_brackets(item)).or_default();
                     }
                     for item in custom.registry {
                         stored.registry.entry(item).or_default();
@@ -750,7 +782,7 @@ impl Manifest {
                 files: custom
                     .files
                     .into_iter()
-                    .map(|x| (x, GameFileEntry::default()))
+                    .map(|x| (Self::escape_glob_brackets(x), GameFileEntry::default()))
                     .collect(),
                 registry: custom
                     .registry
@@ -1222,6 +1254,63 @@ mod tests {
                 "baz".to_string(): "foo".to_string(),
             },
             manifest.aliases(),
+        );
+    }
+
+    #[test]
+    fn custom_game_files_with_brackets_are_glob_escaped() {
+        use crate::resource::config::{CustomGame, Integration};
+
+        let mut manifest = Manifest::default();
+
+        manifest.add_custom_game(CustomGame {
+            name: "Example Game".to_string(),
+            files: vec![
+                "C:/Users/Public/Documents/Example Game [1234567]/saves"
+                    .to_string(),
+            ],
+            ..Default::default()
+        });
+        assert_eq!(
+            manifest.0["Example Game"]
+                .files
+                .keys()
+                .next()
+                .unwrap(),
+            "C:/Users/Public/Documents/Example Game [[]1234567[]]/saves"
+        );
+
+        manifest.add_custom_game(CustomGame {
+            name: "Example Game".to_string(),
+            files: vec![
+                "<winLocalAppData>/ExampleGame/Saved/SaveGames/SteamMain_<storeUserId>/*.sav"
+                    .to_string(),
+                "[another] dir/*.sav".to_string(),
+            ],
+            integration: Integration::Extend,
+            ..Default::default()
+        });
+
+        let files: Vec<_> = manifest.0["Example Game"].files.keys().cloned().collect();
+        assert!(files.contains(
+            &"<winLocalAppData>/ExampleGame/Saved/SaveGames/SteamMain_<storeUserId>/*.sav"
+                .to_string()
+        ));
+        assert!(files.contains(&"[[]another[]] dir/*.sav".to_string()));
+
+        // Idempotency: an already-escaped path must not be escaped a second time.
+        assert_eq!(
+            Manifest::escape_glob_brackets(
+                "C:/Users/Public/Documents/Example Game [[]1234567[]]/saves".to_string()
+            ),
+            "C:/Users/Public/Documents/Example Game [[]1234567[]]/saves"
+        );
+        // Sanity: a raw bracketed path gets escaped exactly once.
+        assert_eq!(
+            Manifest::escape_glob_brackets(
+                "C:/Users/Public/Documents/Example Game [1234567]/saves".to_string()
+            ),
+            "C:/Users/Public/Documents/Example Game [[]1234567[]]/saves"
         );
     }
 }
