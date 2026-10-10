@@ -2570,6 +2570,7 @@ mod tests {
 
         fn wine_redirect_context(prefix: &str, wine_user: &str) -> semantic::Wine {
             semantic::Wine {
+                detected: true,
                 preferred_prefix: Some(semantic::Prefix {
                     path: StrictPath::new(prefix),
                     wine_user: wine_user.to_string(),
@@ -3556,6 +3557,7 @@ mod tests {
                 },
             };
             let wine_ctx = semantic::Wine {
+                detected: true,
                 preferred_prefix: None,
                 known_folders: Some(semantic::KnownFolders {
                     app_data: Some("C:/Users/Alice/AppData/Roaming".to_string()),
@@ -3611,6 +3613,7 @@ mod tests {
                 },
             };
             let wine_ctx = semantic::Wine {
+                detected: true,
                 preferred_prefix: None,
                 known_folders: Some(semantic::KnownFolders {
                     app_data: Some("C:/Users/Alice/AppData/Roaming".to_string()),

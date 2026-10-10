@@ -2323,6 +2323,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2358,6 +2359,7 @@ mod tests {
             wine_user: "wineuser".to_string(),
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2395,6 +2397,7 @@ mod tests {
             wine_user: "wineuser".to_string(),
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2419,6 +2422,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let prefix = StrictPath::new(tmp.path().to_string_lossy().to_string());
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(semantic::Prefix {
                 path: prefix.clone(),
                 wine_user: "wineuser".to_string(),
@@ -2461,6 +2465,7 @@ mod tests {
             },
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(semantic::KnownFolders {
                 app_data: Some("C:/Users/Alice/AppData/Roaming".to_string()),
@@ -2484,6 +2489,7 @@ mod tests {
     fn game_file_target_redirect_wine_no_prefix_returns_none() {
         let sem = wine_semantics("/some/other/prefix");
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(semantic::KnownFolders::default()),
         };
@@ -2505,6 +2511,7 @@ mod tests {
         // User-configured redirects take precedence over Wine redirect.
         let sem = wine_semantics("/home/user/prefix");
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(semantic::KnownFolders {
                 documents: Some("C:/Users/Alice/Documents".to_string()),
@@ -2547,6 +2554,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2583,6 +2591,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2621,6 +2630,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2654,6 +2664,7 @@ mod tests {
             wine_user: "steamuser".to_string(),
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2687,6 +2698,7 @@ mod tests {
             wine_user: "steamuser".to_string(),
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2729,6 +2741,7 @@ mod tests {
             wine_user: "steamuser".to_string(),
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
