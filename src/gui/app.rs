@@ -472,10 +472,11 @@ impl App {
                 let config = std::sync::Arc::new(self.config.clone());
                 let roots = std::sync::Arc::new(config.expanded_roots());
                 let layout = std::sync::Arc::new(*layout);
-                let prefix_candidates =
-                    std::sync::Arc::new(semantic::PrefixCandidates::new(&config, &roots, &launchers, &subjects));
                 let launchers = std::sync::Arc::new(launchers);
                 let filter = std::sync::Arc::new(self.config.backup.filter.clone());
+                let prefix_candidates = std::sync::Arc::new(semantic::PrefixCandidates::new(
+                    &config, &manifest, &roots, &launchers, &steam, &subjects,
+                ));
                 let steam_shortcuts = std::sync::Arc::new(steam);
                 let games_specified = self.operation.games_specified();
                 let retention = config

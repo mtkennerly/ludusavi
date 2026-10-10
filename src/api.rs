@@ -143,7 +143,14 @@ impl Ludusavi {
 
         let mut duplicate_detector = DuplicateDetector::default();
         let launchers = Launchers::scan(&roots, &self.manifest, &games, &self.title_finder, None);
-        let prefix_candidates = semantic::PrefixCandidates::new(&self.config, &roots, &launchers, &games);
+        let prefix_candidates = semantic::PrefixCandidates::new(
+            &self.config,
+            &self.manifest,
+            &roots,
+            &launchers,
+            &self.steam_shortcuts,
+            &games,
+        );
 
         let cloud_sync = self.config.cloud.synchronize
             && !finality.preview()

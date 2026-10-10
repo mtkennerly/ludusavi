@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use crate::{
     api::{Config, StrictPath},
-    resource::{config::Root, manifest::Manifest},
+    resource::{
+        config::Root,
+        manifest::{Manifest, Store},
+    },
     scan::{
-        Launchers, TitleFinder,
+        Launchers, SteamShortcuts, TitleFinder,
         layout::{BackupSemantics, SemanticDirKind},
     },
 };
@@ -87,7 +90,7 @@ impl Wine {
     }
 }
 
-/// Paths that may be a game's local Wine prefix, found via launchers (and, later, Steam).
+/// Paths that may be a game's local Wine prefix, found via launchers and Steam.
 /// They are not checked here: `Wine::for_game` validates them and uses the first valid one
 /// when a game has no custom Wine prefix.
 #[derive(Clone, Debug, Default)]
@@ -96,7 +99,14 @@ pub struct PrefixCandidates {
 }
 
 impl PrefixCandidates {
-    pub fn new(config: &Config, roots: &[Root], launchers: &Launchers, games: &[String]) -> Self {
+    pub fn new(
+        config: &Config,
+        manifest: &Manifest,
+        roots: &[Root],
+        launchers: &Launchers,
+        steam_shortcuts: &SteamShortcuts,
+        games: &[String],
+    ) -> Self {
         let mut prefixes = HashMap::<String, Vec<StrictPath>>::new();
 
         if !config.scan.redirect_wine {
@@ -112,6 +122,20 @@ impl PrefixCandidates {
                         .extend(launcher_prefix_candidates(prefix));
                 }
             }
+
+            let shortcut = steam_shortcuts.get(game).map(|x| x.id);
+            let ids: Vec<_> = match manifest.0.get(game) {
+                Some(x) => x.all_ids().steam(shortcut).collect(),
+                None => shortcut.into_iter().collect(),
+            };
+            for root in roots.iter().filter(|x| x.store() == Store::Steam) {
+                for id in &ids {
+                    prefixes
+                        .entry(game.clone())
+                        .or_default()
+                        .push(root.path().joined(format!("steamapps/compatdata/{id}/pfx")));
+                }
+            }
         }
 
         Self { prefixes }
@@ -124,7 +148,8 @@ impl PrefixCandidates {
 
         let roots = config.expanded_roots();
         let launchers = Launchers::scan(&roots, manifest, games, title_finder, None);
-        Self::new(config, &roots, &launchers, games)
+        let steam_shortcuts = SteamShortcuts::scan(title_finder);
+        Self::new(config, manifest, &roots, &launchers, &steam_shortcuts, games)
     }
 
     pub fn for_game(&self, game_name: &str, config: &Config) -> Option<Wine> {
@@ -411,5 +436,55 @@ mod tests {
         let prefix = StrictPath::from(tmp.path());
 
         assert_eq!(vec![prefix.clone()], launcher_prefix_candidates(&prefix));
+    }
+
+    #[test]
+    fn restores_into_local_steam_shortcut_prefix() {
+        use crate::scan::steam::SteamShortcut;
+
+        let tmp = tempfile::tempdir().unwrap();
+        make_prefix(&tmp.path().join("steamapps/compatdata/4000000001/pfx"), "steamuser");
+        let steam = StrictPath::from(tmp.path());
+        let prefix_candidates = PrefixCandidates::new(
+            &config(),
+            &Manifest::default(),
+            &[Root::new(steam.clone(), Store::Steam)],
+            &Launchers::default(),
+            &SteamShortcuts::with(
+                "game",
+                SteamShortcut {
+                    id: 4000000001,
+                    start_dir: None,
+                },
+            ),
+            &["game".to_string()],
+        );
+        let wine = prefix_candidates.for_game("game", &config()).unwrap();
+
+        // Backed up on another machine, where the shortcut had a different ID.
+        let source = "/home/deck/.local/share/Steam/steamapps/compatdata/4000000002/pfx";
+        let semantics = BackupSemantics {
+            directories: [(
+                source.to_string(),
+                crate::scan::layout::DirectorySemantics {
+                    kind: SemanticDirKind::Wine,
+                },
+            )]
+            .into(),
+        };
+        assert_eq!(
+            Some(
+                steam.joined(
+                    "steamapps/compatdata/4000000001/pfx/drive_c/users/steamuser/AppData/Roaming/game/save.dat"
+                )
+            ),
+            generate_restore_redirect(
+                &StrictPath::new(format!(
+                    "{source}/drive_c/users/steamuser/AppData/Roaming/game/save.dat"
+                )),
+                &semantics,
+                &wine,
+            )
+        );
     }
 }
