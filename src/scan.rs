@@ -2453,6 +2453,34 @@ mod tests {
     }
 
     #[test]
+    fn game_file_target_redirect_wine_restore_nested_prefix_to_windows() {
+        let sem = BackupSemantics {
+            directories: btree_map! {
+                "/home/deck/prefix".to_string(): DirectorySemantics { kind: SemanticDirKind::Wine },
+                "/home/deck/prefix/pfx".to_string(): DirectorySemantics { kind: SemanticDirKind::Wine },
+            },
+        };
+        let ctx = semantic::Wine {
+            preferred_prefix: None,
+            known_folders: Some(semantic::KnownFolders {
+                app_data: Some("C:/Users/Alice/AppData/Roaming".to_string()),
+                ..Default::default()
+            }),
+        };
+        assert_eq!(
+            Some(StrictPath::new("C:/Users/Alice/AppData/Roaming/game/save.dat")),
+            game_file_target(
+                &StrictPath::new("/home/deck/prefix/pfx/drive_c/users/steamuser/AppData/Roaming/game/save.dat"),
+                &[],
+                false,
+                ScanKind::Restore,
+                Some(&sem),
+                Some(&ctx),
+            )
+        );
+    }
+
+    #[test]
     fn game_file_target_redirect_wine_no_prefix_returns_none() {
         let sem = wine_semantics("/some/other/prefix");
         let ctx = semantic::Wine {

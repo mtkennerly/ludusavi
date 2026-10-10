@@ -83,10 +83,17 @@ pub fn generate_restore_redirect(
 ) -> Option<StrictPath> {
     let stored_raw = stored_path.raw();
 
+    // Prefer the most specific prefix, since one may be nested in another (e.g., `<prefix>/pfx`).
     let wine_match = semantics
         .directories
         .iter()
-        .find(|(dir, semantics)| stored_raw.starts_with(dir.as_str()) && semantics.kind == SemanticDirKind::Wine);
+        .filter(|(dir, semantics)| {
+            semantics.kind == SemanticDirKind::Wine
+                && stored_path
+                    .case_insensitive_tail_for(&StrictPath::new((*dir).clone()))
+                    .is_some()
+        })
+        .max_by_key(|(dir, _)| dir.len());
 
     if let Some((prefix_path, _)) = wine_match {
         // Linux/Wine backup → Windows restore: preferred_prefix is None, known_folders is Some.
