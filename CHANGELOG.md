@@ -19,6 +19,8 @@
   * CLI: In `--api` mode, the `backup` command now outputs a `tags` field based on manifest tags.
     ([Contributed by ChrisJr404](https://github.com/mtkennerly/ludusavi/pull/645))
 * Fixed:
+  * GUI: The duplicates filter can now be cleared from the status row,
+    even when all matching games are hidden or their conflicts are resolved.
   * Two distinct drives whose escaped folder names collided
     (such as the UNC shares `\\a_b\c` and `\\a\b_c`) would share one backup
     so saves from one could silently overwrite the other.
