@@ -743,27 +743,34 @@ pub fn other<'a>(
 mod tests {
     use iced::{
         Event, Font, Pixels, Rectangle, Size,
-        advanced::{Layout, Shell, clipboard, layout, mouse, renderer::Headless, widget::Tree},
+        advanced::{
+            Layout, Shell, clipboard, layout, mouse,
+            renderer::Headless,
+            widget::{Id, Operation as WidgetOperation, Tree},
+        },
     };
 
     use super::*;
 
-    #[test]
-    fn status_row_hides_resolved_duplicates_when_not_filtering() {
-        use iced::advanced::Widget;
+    struct FindBadge {
+        label: String,
+        bounds: Option<Rectangle>,
+    }
 
-        for scan_kind in [ScanKind::Backup, ScanKind::Restore] {
-            for duplication in [Duplication::Unique, Duplication::Resolved] {
-                let row = make_status_row(&OperationStatus::default(), duplication, scan_kind, false);
-                assert_eq!(row.children().len(), 3);
+    impl WidgetOperation for FindBadge {
+        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn WidgetOperation)) {
+            operate(self);
+        }
+
+        fn text(&mut self, _id: Option<&Id>, bounds: Rectangle, text: &str) {
+            if text == self.label {
+                self.bounds = Some(bounds);
             }
-            let row = make_status_row(&OperationStatus::default(), Duplication::Duplicate, scan_kind, false);
-            assert_eq!(row.children().len(), 4);
         }
     }
 
     #[tokio::test]
-    async fn status_row_can_clear_duplicates_filter_without_game_rows() {
+    async fn status_row_duplicates_badge_can_clear_active_filter() {
         let renderer = iced::Renderer::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("software renderer");
@@ -771,39 +778,61 @@ mod tests {
 
         for scan_kind in [ScanKind::Backup, ScanKind::Restore] {
             for duplication in [Duplication::Duplicate, Duplication::Resolved, Duplication::Unique] {
-                let mut element: Element =
-                    make_status_row(&OperationStatus::default(), duplication, scan_kind, true).into();
-                let mut tree = Tree::new(element.as_widget());
-                let node = element.as_widget_mut().layout(
-                    &mut tree,
-                    &renderer,
-                    &layout::Limits::new(Size::ZERO, viewport.size()),
-                );
-                let layout = Layout::new(&node);
-                assert_eq!(layout.children().count(), 4, "active filter must keep its exit badge");
-                let cursor = mouse::Cursor::Available(layout.children().last().unwrap().bounds().center());
-                let mut messages = vec![];
-
-                for event in [
-                    mouse::Event::ButtonPressed(mouse::Button::Left),
-                    mouse::Event::ButtonReleased(mouse::Button::Left),
-                ] {
-                    element.as_widget_mut().update(
+                for filtering_duplicates in [false, true] {
+                    let mut element: Element = make_status_row(
+                        &OperationStatus::default(),
+                        duplication,
+                        scan_kind,
+                        filtering_duplicates,
+                    )
+                    .into();
+                    let mut tree = Tree::new(element.as_widget());
+                    let node = element.as_widget_mut().layout(
                         &mut tree,
-                        &Event::Mouse(event),
-                        layout,
-                        cursor,
                         &renderer,
-                        &mut clipboard::Null,
-                        &mut Shell::new(&mut messages),
-                        &viewport,
+                        &layout::Limits::new(Size::ZERO, viewport.size()),
                     );
-                }
+                    let layout = Layout::new(&node);
+                    let mut badge = FindBadge {
+                        label: TRANSLATOR.badge_duplicates(),
+                        bounds: None,
+                    };
+                    element
+                        .as_widget_mut()
+                        .operate(&mut tree, layout, &renderer, &mut badge);
+                    assert_eq!(badge.bounds.is_some(), filtering_duplicates || !duplication.resolved());
+                    let Some(bounds) = badge.bounds else { continue };
+                    let cursor = mouse::Cursor::Available(bounds.center());
+                    let mut messages = vec![];
 
-                assert!(matches!(
-                    messages.as_slice(),
-                    [Message::FilterDuplicates { scan_kind: kind, game: None }] if *kind == scan_kind
-                ));
+                    for event in [
+                        mouse::Event::ButtonPressed(mouse::Button::Left),
+                        mouse::Event::ButtonReleased(mouse::Button::Left),
+                    ] {
+                        element.as_widget_mut().update(
+                            &mut tree,
+                            &Event::Mouse(event),
+                            layout,
+                            cursor,
+                            &renderer,
+                            &mut clipboard::Null,
+                            &mut Shell::new(&mut messages),
+                            &viewport,
+                        );
+                    }
+
+                    if filtering_duplicates {
+                        assert!(matches!(
+                            messages.as_slice(),
+                            [Message::FilterDuplicates { scan_kind: kind, game: None }] if *kind == scan_kind
+                        ));
+                    } else {
+                        assert!(
+                            messages.is_empty(),
+                            "inactive duplicates badge must remain informational"
+                        );
+                    }
+                }
             }
         }
     }
