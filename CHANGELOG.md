@@ -9,6 +9,9 @@
 
     For more information, see [the help documentation](/docs/help/transfer-between-operating-systems.md).
     As it is an experimental feature, it requires some manual configuration and has some caveats.
+
+    When restoring into a Wine prefix, Ludusavi can also use prefixes detected from launchers and Steam,
+    including non-Steam shortcuts, instead of only prefixes from custom game entries.
   * Ludusavi can now detect saves and Wine prefixes for the Faugus game launcher.
     It will automatically detect the standard Faugus root locations as well.
   * The Mac download now includes `Ludusavi.app` for more standard packaging,
@@ -18,6 +21,10 @@
     ([Contributed by a1156883061](https://github.com/mtkennerly/ludusavi/pull/641))
   * CLI: In `--api` mode, the `backup` command now outputs a `tags` field based on manifest tags.
     ([Contributed by ChrisJr404](https://github.com/mtkennerly/ludusavi/pull/645))
+* Changed:
+  * When several backed up files would be restored to the same path, such as because of redirects,
+    Ludusavi now restores only one of them and skips the others.
+    This also applies when `scan.redirectWine` is off.
 * Fixed:
   * GUI: The duplicates filter can now be cleared from the status row,
     even when all matching games are hidden or their conflicts are resolved.

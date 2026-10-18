@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
     io::Write,
 };
 
@@ -562,6 +562,47 @@ pub struct GameLayout {
     mapping: IndividualMapping,
 }
 
+/// When several backed up files would be restored to the same place,
+/// keep only one of them, preferring files that were not redirected
+/// and then files from a Proton prefix (`pfx`).
+fn ignore_restore_collisions(files: &mut HashMap<StrictPath, ScannedFile>) {
+    let mut by_target = HashMap::<&StrictPath, Vec<&StrictPath>>::new();
+    for (scan_key, file) in files.iter() {
+        by_target.entry(file.effective(scan_key)).or_default().push(scan_key);
+    }
+
+    let mut losers = vec![];
+    for (target, mut scan_keys) in by_target {
+        if scan_keys.len() < 2 {
+            continue;
+        }
+        scan_keys.sort_by_key(|scan_key| {
+            let file = &files[*scan_key];
+            let original = file.original_path(scan_key);
+            (
+                file.redirected.is_some(),
+                !original.raw().contains("/pfx/drive_c/"),
+                original.render(),
+            )
+        });
+        for scan_key in &scan_keys[1..] {
+            log::warn!(
+                "Ignoring {:?} because {:?} will also be restored to {:?}",
+                files[*scan_key].original_path(scan_key),
+                files[scan_keys[0]].original_path(scan_keys[0]),
+                target
+            );
+            losers.push((*scan_key).clone());
+        }
+    }
+
+    for scan_key in losers {
+        if let Some(file) = files.get_mut(&scan_key) {
+            file.ignored = true;
+        }
+    }
+}
+
 impl GameLayout {
     #[cfg(test)]
     pub fn new(path: StrictPath, mapping: IndividualMapping) -> Self {
@@ -721,14 +762,17 @@ impl GameLayout {
                 ));
             }
             Some((full, Some(diff))) => {
-                files.extend(self.restorable_files_from_diff_backup(
+                let diff_files = self.restorable_files_from_diff_backup(
                     diff,
                     scan_kind,
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
                     wine_redirect,
-                ));
+                );
+                // If an inherited file would be restored to the same place as a newer one, skip it.
+                let diff_targets: HashSet<_> = diff_files.iter().map(|(k, v)| v.effective(k).clone()).collect();
+                files.extend(diff_files);
 
                 for (scan_key, full_file) in self.restorable_files_from_full_backup(
                     full,
@@ -739,11 +783,17 @@ impl GameLayout {
                     wine_redirect,
                 ) {
                     let original_path = full_file.original_path.as_ref().unwrap().render();
-                    if diff.file(original_path) == BackupInclusion::Inherited {
+                    if diff.file(original_path) == BackupInclusion::Inherited
+                        && !diff_targets.contains(full_file.effective(&scan_key))
+                    {
                         files.insert(scan_key, full_file);
                     }
                 }
             }
+        }
+
+        if scan_kind.is_restore() {
+            ignore_restore_collisions(&mut files);
         }
 
         files
@@ -2520,6 +2570,7 @@ mod tests {
 
         fn wine_redirect_context(prefix: &str, wine_user: &str) -> semantic::Wine {
             semantic::Wine {
+                detected: true,
                 preferred_prefix: Some(semantic::Prefix {
                     path: StrictPath::new(prefix),
                     wine_user: wine_user.to_string(),
@@ -3477,6 +3528,111 @@ mod tests {
                     file.redirected
                 );
             }
+        }
+
+        #[test]
+        fn ignores_restore_collisions_from_wine_redirect() {
+            let stale = "/home/deck/prefix/drive_c/users/deck/AppData/Roaming/game/save.dat";
+            let live = "/home/deck/prefix/pfx/drive_c/users/steamuser/AppData/Roaming/game/save.dat";
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
+                mapping: IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "backup-1".into(),
+                        when: past(),
+                        files: btree_map! {
+                            stale.to_string(): IndividualMappingFile { hash: "stale".into(), size: 1 },
+                            live.to_string(): IndividualMappingFile { hash: "live".into(), size: 1 },
+                        },
+                        semantics: BackupSemantics {
+                            directories: btree_map! {
+                                "/home/deck/prefix".to_string(): DirectorySemantics { kind: SemanticDirKind::Wine },
+                                "/home/deck/prefix/pfx".to_string(): DirectorySemantics { kind: SemanticDirKind::Wine },
+                            },
+                        },
+                        ..Default::default()
+                    }]),
+                },
+            };
+            let wine_ctx = semantic::Wine {
+                detected: true,
+                preferred_prefix: None,
+                known_folders: Some(semantic::KnownFolders {
+                    app_data: Some("C:/Users/Alice/AppData/Roaming".to_string()),
+                    ..Default::default()
+                }),
+            };
+            let files = layout.restorable_files(
+                &BackupId::Latest,
+                ScanKind::Restore,
+                &[],
+                false,
+                &Default::default(),
+                Some(&wine_ctx),
+            );
+
+            let ignored = |source: &str| {
+                files
+                    .values()
+                    .find(|file| file.original_path.as_ref() == Some(&StrictPath::new(source)))
+                    .unwrap()
+                    .ignored
+            };
+            assert!(ignored(stale));
+            assert!(!ignored(live));
+        }
+
+        #[test]
+        fn prefers_newer_backup_when_inherited_file_has_same_restore_target() {
+            let windows = "C:/Users/Alice/AppData/Roaming/game/save.dat";
+            let wine = "/home/deck/prefix/pfx/drive_c/users/steamuser/AppData/Roaming/game/save.dat";
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
+                mapping: IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "backup-1".into(),
+                        when: past(),
+                        files: btree_map! {
+                            windows.to_string(): IndividualMappingFile { hash: "old".into(), size: 1 },
+                        },
+                        children: VecDeque::from([DifferentialBackup {
+                            name: "backup-2".into(),
+                            when: past2(),
+                            semantics: wine_semantics("/home/deck/prefix/pfx"),
+                            files: btree_map! {
+                                wine.to_string(): Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
+                            },
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }]),
+                },
+            };
+            let wine_ctx = semantic::Wine {
+                detected: true,
+                preferred_prefix: None,
+                known_folders: Some(semantic::KnownFolders {
+                    app_data: Some("C:/Users/Alice/AppData/Roaming".to_string()),
+                    ..Default::default()
+                }),
+            };
+            let files = layout.restorable_files(
+                &BackupId::Latest,
+                ScanKind::Restore,
+                &[],
+                false,
+                &Default::default(),
+                Some(&wine_ctx),
+            );
+
+            assert_eq!(1, files.len());
+            let file = files.values().next().unwrap();
+            assert_eq!(Some(StrictPath::new(wine)), file.original_path);
+            assert!(!file.ignored);
         }
 
         #[test]

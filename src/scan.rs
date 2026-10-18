@@ -961,7 +961,9 @@ pub fn scan_game_for_backup(
     log::trace!("[{name}] completed scan for backup");
 
     let mut semantics = BackupSemantics::default();
-    for prefix in wine_prefixes_with_included_files(game, name, roots, launchers, wine_prefix, &found_files) {
+    for prefix in
+        wine_prefixes_with_included_files(game, name, roots, launchers, wine_prefix, steam_shortcut, &found_files)
+    {
         semantics.directories.insert(
             prefix.render(),
             DirectorySemantics {
@@ -989,6 +991,7 @@ fn wine_prefixes_with_included_files(
     roots: &[Root],
     launchers: &Launchers,
     wine_prefix: Option<&StrictPath>,
+    steam_shortcut: Option<&SteamShortcut>,
     found_files: &HashMap<StrictPath, ScannedFile>,
 ) -> Vec<StrictPath> {
     let mut prefixes = Vec::new();
@@ -1009,6 +1012,11 @@ fn wine_prefixes_with_included_files(
                 prefixes.push(pfx);
             }
         }
+        if root.store() == Store::Steam {
+            for id in game.all_ids().steam(steam_shortcut.map(|x| x.id)) {
+                prefixes.push(root.path().joined(format!("steamapps/compatdata/{id}/pfx")));
+            }
+        }
     }
 
     let mut valid = Vec::new();
@@ -1016,10 +1024,9 @@ fn wine_prefixes_with_included_files(
         if valid.iter().any(|seen: &StrictPath| seen == &prefix) {
             continue;
         }
-        if semantic::Prefix::validated(&prefix).is_some()
-            && found_files.iter().any(|(scan_key, file)| {
-                file_is_included_in_backup(file) && scan_key.case_insensitive_tail_for(&prefix).is_some()
-            })
+        if found_files.iter().any(|(scan_key, file)| {
+            file_is_included_in_backup(file) && scan_key.case_insensitive_tail_for(&prefix).is_some()
+        }) && semantic::Prefix::validated(&prefix).is_some()
         {
             valid.push(prefix);
         }
@@ -2282,6 +2289,33 @@ mod tests {
     }
 
     #[test]
+    fn wine_prefixes_with_included_files_includes_steam_compatdata() {
+        let tmp = tempfile::tempdir().unwrap();
+        let pfx = tmp.path().join("steamapps/compatdata/4000000001/pfx");
+        std::fs::create_dir_all(pfx.join("drive_c/users/steamuser/AppData/Roaming/game")).unwrap();
+        std::fs::File::create(pfx.join("system.reg")).unwrap();
+        let save = StrictPath::from(pfx.join("drive_c/users/steamuser/AppData/Roaming/game/save.dat"));
+        let root = Root::new(StrictPath::from(tmp.path()), Store::Steam);
+        let shortcut = SteamShortcut {
+            id: 4000000001,
+            start_dir: None,
+        };
+
+        assert_eq!(
+            vec![StrictPath::from(tmp.path()).joined("steamapps/compatdata/4000000001/pfx")],
+            wine_prefixes_with_included_files(
+                &Game::default(),
+                "game",
+                &[root],
+                &Launchers::default(),
+                None,
+                Some(&shortcut),
+                &hash_map! { save: ScannedFile::new(0, EMPTY_HASH).change_new() },
+            )
+        );
+    }
+
+    #[test]
     fn game_file_target_redirect_wine_false_preserves_behavior() {
         // With redirect_wine=false, no redirects generated even on restore.
         assert_eq!(
@@ -2323,6 +2357,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2358,6 +2393,7 @@ mod tests {
             wine_user: "wineuser".to_string(),
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2395,6 +2431,7 @@ mod tests {
             wine_user: "wineuser".to_string(),
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2419,6 +2456,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let prefix = StrictPath::new(tmp.path().to_string_lossy().to_string());
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(semantic::Prefix {
                 path: prefix.clone(),
                 wine_user: "wineuser".to_string(),
@@ -2453,9 +2491,39 @@ mod tests {
     }
 
     #[test]
+    fn game_file_target_redirect_wine_restore_nested_prefix_to_windows() {
+        let sem = BackupSemantics {
+            directories: btree_map! {
+                "/home/deck/prefix".to_string(): DirectorySemantics { kind: SemanticDirKind::Wine },
+                "/home/deck/prefix/pfx".to_string(): DirectorySemantics { kind: SemanticDirKind::Wine },
+            },
+        };
+        let ctx = semantic::Wine {
+            detected: true,
+            preferred_prefix: None,
+            known_folders: Some(semantic::KnownFolders {
+                app_data: Some("C:/Users/Alice/AppData/Roaming".to_string()),
+                ..Default::default()
+            }),
+        };
+        assert_eq!(
+            Some(StrictPath::new("C:/Users/Alice/AppData/Roaming/game/save.dat")),
+            game_file_target(
+                &StrictPath::new("/home/deck/prefix/pfx/drive_c/users/steamuser/AppData/Roaming/game/save.dat"),
+                &[],
+                false,
+                ScanKind::Restore,
+                Some(&sem),
+                Some(&ctx),
+            )
+        );
+    }
+
+    #[test]
     fn game_file_target_redirect_wine_no_prefix_returns_none() {
         let sem = wine_semantics("/some/other/prefix");
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(semantic::KnownFolders::default()),
         };
@@ -2477,6 +2545,7 @@ mod tests {
         // User-configured redirects take precedence over Wine redirect.
         let sem = wine_semantics("/home/user/prefix");
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(semantic::KnownFolders {
                 documents: Some("C:/Users/Alice/Documents".to_string()),
@@ -2519,6 +2588,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2555,6 +2625,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2593,6 +2664,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2626,6 +2698,7 @@ mod tests {
             wine_user: "steamuser".to_string(),
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2659,6 +2732,7 @@ mod tests {
             wine_user: "steamuser".to_string(),
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2701,6 +2775,7 @@ mod tests {
             wine_user: "steamuser".to_string(),
         };
         let ctx = semantic::Wine {
+            detected: true,
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
