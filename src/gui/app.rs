@@ -3089,3 +3089,93 @@ impl App {
             .into()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        gui::game_list::GameListEntry,
+        scan::{Duplication, ScanChange, ScanInfo, ScannedFile},
+    };
+
+    #[test]
+    fn clearing_duplicates_filter_restores_visible_games_after_disabling_all_matches() {
+        for scan_kind in [ScanKind::Backup, ScanKind::Restore] {
+            let mut app = App::default();
+            app.config.scan.show_deselected_games = false;
+
+            let (log, detector) = match scan_kind {
+                ScanKind::Backup => (&mut app.backup_screen.log, &mut app.backup_screen.duplicate_detector),
+                ScanKind::Restore => (&mut app.restore_screen.log, &mut app.restore_screen.duplicate_detector),
+            };
+            for (name, path) in [
+                ("duplicate1", "shared.sav"),
+                ("duplicate2", "shared.sav"),
+                ("other", "other.sav"),
+            ] {
+                let scan_info = ScanInfo {
+                    game_name: name.to_owned(),
+                    found_files: HashMap::from([(
+                        StrictPath::from(path),
+                        ScannedFile {
+                            original_path: (scan_kind == ScanKind::Restore).then(|| StrictPath::from(path)),
+                            change: ScanChange::New,
+                            ..Default::default()
+                        },
+                    )]),
+                    backup: (scan_kind == ScanKind::Restore)
+                        .then(|| crate::scan::layout::Backup::Full(Default::default())),
+                    has_backups: scan_kind == ScanKind::Restore,
+                    ..Default::default()
+                };
+                detector.add_game(&scan_info, true);
+                log.entries.push(GameListEntry {
+                    scan_info,
+                    scanned: true,
+                    ..Default::default()
+                });
+            }
+
+            let visible_games = |app: &App| {
+                let (log, detector) = match scan_kind {
+                    ScanKind::Backup => (&app.backup_screen.log, &app.backup_screen.duplicate_detector),
+                    ScanKind::Restore => (&app.restore_screen.log, &app.restore_screen.duplicate_detector),
+                };
+                log.visible_games(scan_kind, &app.config, &app.manifest.extended, detector)
+            };
+            let _ = app.update(Message::FilterDuplicates {
+                scan_kind,
+                game: Some("duplicate1".to_owned()),
+            });
+            assert_eq!(
+                visible_games(&app),
+                HashSet::from(["duplicate1".to_owned(), "duplicate2".to_owned()])
+            );
+
+            for name in ["duplicate1", "duplicate2"] {
+                let _ = app.update(Message::Config {
+                    event: config::Event::GameListEntryEnabled {
+                        name: name.to_owned(),
+                        enabled: false,
+                        scan_kind,
+                    },
+                });
+            }
+            assert!(visible_games(&app).is_empty());
+            let detector = match scan_kind {
+                ScanKind::Backup => &app.backup_screen.duplicate_detector,
+                ScanKind::Restore => &app.restore_screen.duplicate_detector,
+            };
+            assert_eq!(detector.overall(), Duplication::Resolved);
+
+            let _ = app.update(Message::FilterDuplicates { scan_kind, game: None });
+            assert_eq!(visible_games(&app), HashSet::from(["other".to_owned()]));
+            assert!(!app.config.scan.show_deselected_games);
+            let log = match scan_kind {
+                ScanKind::Backup => &app.backup_screen.log,
+                ScanKind::Restore => &app.restore_screen.log,
+            };
+            assert!(!log.is_filtered());
+        }
+    }
+}
