@@ -21,6 +21,7 @@
 * Fixed:
   * GUI: The duplicates filter can now be cleared from the status row,
     even when all matching games are hidden or their conflicts are resolved.
+    ([Contributed by Zhong-fan](https://github.com/mtkennerly/ludusavi/pull/655))
   * Two distinct drives whose escaped folder names collided
     (such as the UNC shares `\\a_b\c` and `\\a\b_c`) would share one backup
     so saves from one could silently overwrite the other.
