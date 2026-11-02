@@ -450,7 +450,60 @@ impl ResourceFile for Manifest {
     const FILE_NAME: &'static str = "manifest.yaml";
 }
 
+/// JSON copy of the parsed primary manifest, because parsing the YAML is slow.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct ManifestCache {
+    /// Ludusavi version and SHA-1 of the `manifest.yaml` content.
+    key: String,
+    manifest: Manifest,
+}
+
 impl Manifest {
+    fn cache_path() -> StrictPath {
+        app_dir().joined("manifest-cache.json")
+    }
+
+    fn load_cached(path: &StrictPath, cache_path: &StrictPath) -> Result<Self, crate::prelude::AnyError> {
+        use sha1::Digest;
+
+        if !path.exists() {
+            return Ok(Self::default().initialize());
+        }
+        let content = Self::load_raw(path)?;
+        let key = format!("{}:{:x}", env!("CARGO_PKG_VERSION"), sha1::Sha1::digest(&content));
+        if let Ok(cache) = cache_path.try_read()
+            && let Ok(cache) = serde_json::from_str::<ManifestCache>(&cache)
+            && cache.key == key
+        {
+            return Ok(cache.manifest);
+        }
+
+        let cache = ManifestCache {
+            key,
+            manifest: Self::load_from_string(&content)?,
+        };
+        if let Err(e) = Self::save_cache(cache_path, &cache) {
+            log::warn!("Unable to write manifest cache: {cache_path:?} - {e}");
+        }
+        Ok(cache.manifest)
+    }
+
+    /// Readers must never see a partial or mixed file, so publish a complete temporary file by rename.
+    /// The temporary file has a random name and is created exclusively,
+    /// because sandboxed instances (e.g., Flatpak) can share a process ID.
+    fn save_cache(cache_path: &StrictPath, cache: &ManifestCache) -> std::io::Result<()> {
+        use std::io::Write;
+
+        let path = cache_path.as_std_path_buf()?;
+        let folder = path
+            .parent()
+            .ok_or_else(|| std::io::Error::other("manifest cache path has no parent folder"))?;
+        let mut temp = tempfile::NamedTempFile::new_in(folder)?;
+        temp.write_all(&serde_json::to_vec(cache)?)?;
+        temp.persist(&path)?;
+        Ok(())
+    }
+
     fn file_name_for(url: &str, primary: bool) -> String {
         if primary {
             Self::FILE_NAME.to_string()
@@ -469,7 +522,7 @@ impl Manifest {
     }
 
     pub fn load() -> Result<Self, Error> {
-        ResourceFile::load()
+        Self::load_cached(&Self::path(), &Self::cache_path())
             .map(|mut manifest: Self| {
                 for game in manifest.0.values_mut() {
                     game.sources.insert(Source::Primary);
@@ -935,6 +988,90 @@ mod tests {
 
     use super::*;
     use crate::testing::s;
+
+    fn cache_paths(dir: &tempfile::TempDir) -> (StrictPath, StrictPath) {
+        let dir = StrictPath::from(dir.path());
+        (dir.joined("manifest.yaml"), dir.joined("manifest-cache.json"))
+    }
+
+    #[test]
+    fn cached_manifest_matches_yaml_and_is_reused() {
+        let dir = tempfile::tempdir().unwrap();
+        let (yaml, cache) = cache_paths(&dir);
+        let content = r#"
+game:
+  alias: other
+  files:
+    save:
+      tags: [save]
+      when: [{os: windows, store: steam}]
+  registry:
+    key:
+      tags: [config]
+      when: [{store: epic}]
+  installDir: {Game: {}}
+  steam: {id: 123}
+  gog: {id: 456}
+  id: {flatpak: com.example.Game, gogExtra: [1, 2], steamExtra: [3, 4], lutris: slug}
+  cloud: {steam: true, gog: true}
+  notes: [{message: hello}]
+"#;
+        yaml.write_with_content(content).unwrap();
+        let expected = Manifest::load_from_string(content).unwrap();
+
+        assert_eq!(expected, Manifest::load_cached(&yaml, &cache).unwrap());
+        let stored: ManifestCache = serde_json::from_str(&cache.try_read().unwrap()).unwrap();
+        assert_eq!(expected, stored.manifest);
+        assert_eq!(expected, Manifest::load_cached(&yaml, &cache).unwrap());
+    }
+
+    #[test]
+    fn changed_manifest_invalidates_cache_even_with_same_size_and_mtime() {
+        let dir = tempfile::tempdir().unwrap();
+        let (yaml, cache) = cache_paths(&dir);
+        yaml.write_with_content("first: {}\n").unwrap();
+        Manifest::load_cached(&yaml, &cache).unwrap();
+        let old_time = filetime::FileTime::from_last_modification_time(&yaml.metadata().unwrap());
+        yaml.write_with_content("other: {}\n").unwrap();
+        filetime::set_file_mtime(yaml.as_std_path_buf().unwrap(), old_time).unwrap();
+
+        let expected = Manifest::load_from_string("other: {}\n").unwrap();
+        assert_eq!(expected, Manifest::load_cached(&yaml, &cache).unwrap());
+    }
+
+    #[test]
+    fn unusable_cache_falls_back_to_yaml() {
+        let dir = tempfile::tempdir().unwrap();
+        let (yaml, cache) = cache_paths(&dir);
+        yaml.write_with_content("game: {}\n").unwrap();
+        let expected = Manifest::load_from_string("game: {}\n").unwrap();
+
+        cache.write_with_content("{").unwrap();
+        assert_eq!(expected, Manifest::load_cached(&yaml, &cache).unwrap());
+
+        std::fs::remove_file(cache.as_std_path_buf().unwrap()).unwrap();
+        std::fs::create_dir(cache.as_std_path_buf().unwrap()).unwrap();
+        assert_eq!(expected, Manifest::load_cached(&yaml, &cache).unwrap());
+    }
+
+    #[test]
+    fn cache_is_replaced_rather_than_rewritten_in_place() {
+        let dir = tempfile::tempdir().unwrap();
+        let (yaml, cache) = cache_paths(&dir);
+        yaml.write_with_content("first: {}\n").unwrap();
+        Manifest::load_cached(&yaml, &cache).unwrap();
+        let mut reader = std::fs::File::open(cache.as_std_path_buf().unwrap()).unwrap();
+
+        yaml.write_with_content("second: {}\n").unwrap();
+        Manifest::load_cached(&yaml, &cache).unwrap();
+
+        // A reader of the previous cache must still see that whole generation, never a mix.
+        let mut old = String::new();
+        std::io::Read::read_to_string(&mut reader, &mut old).unwrap();
+        let old: ManifestCache = serde_json::from_str(&old).unwrap();
+        assert_eq!(Manifest::load_from_string("first: {}\n").unwrap(), old.manifest);
+        assert_eq!(2, std::fs::read_dir(dir.path()).unwrap().count());
+    }
 
     #[test]
     fn can_parse_game_with_no_fields() {

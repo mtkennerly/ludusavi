@@ -32,6 +32,8 @@
   * CLI: `--full-limit 0` would result in no backups being created or retained.
     0 is now rejected before the command runs.
     ([Contributed by rleeon](https://github.com/mtkennerly/ludusavi/pull/647))
+* Changed:
+  * Loading the primary manifest is faster after the first load.
 
 ## v0.31.0 (2026-04-04)
 
