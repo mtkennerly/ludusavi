@@ -27,6 +27,10 @@
     so saves from one could silently overwrite the other.
     Colliding folder names are now disambiguated with a numeric suffix.
     ([Contributed by dkxmercury](https://github.com/mtkennerly/ludusavi/pull/631))
+  * Ludusavi did not detect saves for "The Telltale Batman Shadows Edition"
+    when it was installed through Heroic,
+    because Epic lists the bundle (and its individual seasons)
+    under different names than the individual games in the manifest.
   * Rclone sync did not work when the `RCLONE_PROGRESS` environment variable was set.
     ([Contributed by bm1016bm-svg](https://github.com/mtkennerly/ludusavi/pull/635))
   * CLI: `--full-limit 0` would result in no backups being created or retained.

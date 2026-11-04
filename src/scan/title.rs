@@ -23,6 +23,31 @@ static RE_SYMBOLS_GAP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"[™®©
 static RE_SYMBOLS_NO_GAP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"['"‘’“”]"#).unwrap());
 static RE_SPACES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#" {2,}"#).unwrap());
 
+/// Some games are listed in launchers under a different name than in the manifest,
+/// such as when a store sells several games together as a single bundle
+/// or uses a different name for one of the games in the bundle.
+/// This maps those games' normalized launcher titles
+/// to the normalized manifest titles of the games they refer to.
+static ALTERNATE_TITLE_GAMES: LazyLock<HashMap<&str, Vec<&str>>> = LazyLock::new(|| {
+    HashMap::from([
+        // "The Telltale Batman Shadows Edition" contains both seasons of
+        // Batman: The Telltale Series. Epic may list the bundle itself
+        // or each season separately.
+        (
+            "the telltale batman",
+            vec![
+                "batman the telltale series",
+                "batman the enemy within the telltale series",
+            ],
+        ),
+        ("telltale batman season 1", vec!["batman the telltale series"]),
+        (
+            "telltale batman season 2",
+            vec!["batman the enemy within the telltale series"],
+        ),
+    ])
+});
+
 pub fn normalize_title(title: &str) -> String {
     let normalized = title.to_lowercase();
     let normalized = RE_YEAR_SUFFIX.replace_all(&normalized, "");
@@ -157,6 +182,30 @@ impl TitleFinder {
             normalized: true,
             ..Default::default()
         })
+    }
+
+    /// Look up all games that a normalized name may refer to.
+    /// Usually, this is just the one game whose title matches,
+    /// but some launcher titles refer to multiple games
+    /// (such as a store bundle that contains several games),
+    /// in which case all of those games are returned.
+    pub fn find_all_by_normalized_name(&self, name: &str) -> Vec<String> {
+        if let Some(found) = self.find_one_by_normalized_name(name) {
+            return vec![found];
+        }
+
+        let Some(alternates) = ALTERNATE_TITLE_GAMES.get(normalize_title(name).as_str()) else {
+            return vec![];
+        };
+
+        alternates
+            .iter()
+            .filter_map(|alternate| self.normalized.get(*alternate))
+            .map(|found| match self.aliases.get(&found.canonical) {
+                Some(aliased) => aliased.to_string(),
+                None => found.canonical.to_owned(),
+            })
+            .collect()
     }
 
     /// Look up games based on certain criteria.
@@ -514,6 +563,55 @@ mod tests {
                 lutris_id: Some("slug".to_string()),
                 ..Default::default()
             }),
+        );
+    }
+
+    #[test]
+    fn can_find_all_titles_for_bundled_game() {
+        let manifest = Manifest::load_from_string(
+            r#"
+            "Batman: The Enemy Within - The Telltale Series":
+              files:
+                "<winDocuments>/Telltale Games/Batman The Enemy Within - The Telltale Series": {}
+            "Batman: The Telltale Series":
+              files:
+                "<winDocuments>/Telltale Games/Batman The Telltale Series": {}
+            "#,
+        )
+        .unwrap();
+
+        let finder = TitleFinder::new(&Default::default(), &manifest, Default::default());
+
+        // The bundle itself refers to both games.
+        assert_eq!(
+            vec![
+                "Batman: The Telltale Series".to_string(),
+                "Batman: The Enemy Within - The Telltale Series".to_string(),
+            ],
+            finder.find_all_by_normalized_name("The Telltale Batman Shadows Edition"),
+        );
+        // Each season may also be listed separately.
+        assert_eq!(
+            vec!["Batman: The Telltale Series".to_string()],
+            finder.find_all_by_normalized_name("Telltale Batman Season 1"),
+        );
+        assert_eq!(
+            vec!["Batman: The Enemy Within - The Telltale Series".to_string()],
+            finder.find_all_by_normalized_name("Telltale Batman Season 2"),
+        );
+        // A direct title still resolves to just itself.
+        assert_eq!(
+            vec!["Batman: The Telltale Series".to_string()],
+            finder.find_all_by_normalized_name("Batman: The Telltale Series"),
+        );
+        assert_eq!(
+            Vec::<String>::new(),
+            finder.find_all_by_normalized_name("Some Other Game"),
+        );
+        // The bundle does not resolve to a single game.
+        assert_eq!(
+            None,
+            finder.find_one_by_normalized_name("The Telltale Batman Shadows Edition"),
         );
     }
 

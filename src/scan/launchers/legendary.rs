@@ -28,7 +28,8 @@ pub fn scan(root: &root::Legendary, title_finder: &TitleFinder) -> HashMap<Strin
     let mut out = HashMap::<String, HashSet<LauncherGame>>::new();
 
     for game in get_games(&root.path) {
-        let Some(official_title) = title_finder.find_one_by_normalized_name(&game.title) else {
+        let official_titles = title_finder.find_all_by_normalized_name(&game.title);
+        if official_titles.is_empty() {
             log::trace!("Ignoring unrecognized game: {}", &game.title);
             if std::env::var(ENV_DEBUG).is_ok() {
                 eprintln!(
@@ -37,19 +38,21 @@ pub fn scan(root: &root::Legendary, title_finder: &TitleFinder) -> HashMap<Strin
                 );
             }
             continue;
-        };
+        }
 
-        log::trace!(
-            "Detected game: {} | app: {}, raw title: {}",
-            &official_title,
-            &game.app_name,
-            &game.title
-        );
-        out.entry(official_title).or_default().insert(LauncherGame {
-            install_dir: Some(StrictPath::new(game.install_path)),
-            prefix: None,
-            platform: Some(Os::from(game.platform.as_str())),
-        });
+        for official_title in official_titles {
+            log::trace!(
+                "Detected game: {} | app: {}, raw title: {}",
+                &official_title,
+                &game.app_name,
+                &game.title
+            );
+            out.entry(official_title).or_default().insert(LauncherGame {
+                install_dir: Some(StrictPath::new(game.install_path.clone())),
+                prefix: None,
+                platform: Some(Os::from(game.platform.as_str())),
+            });
+        }
     }
 
     out
@@ -112,6 +115,42 @@ mod tests {
         };
         let games = scan(&root, &title_finder());
         assert_eq!(HashMap::new(), games);
+    }
+
+    #[test]
+    fn scan_finds_bundled_games() {
+        let manifest = Manifest::load_from_string(
+            r#"
+            "Batman: The Enemy Within - The Telltale Series":
+              files:
+                "<base>/file1.txt": {}
+            "Batman: The Telltale Series":
+              files:
+                "<base>/file2.txt": {}
+            "#,
+        )
+        .unwrap();
+        let title_finder = TitleFinder::new(&Default::default(), &manifest, Default::default());
+
+        let root = root::Legendary {
+            path: format!("{}/tests/launchers/legendary-batman", repo()).into(),
+        };
+        let games = scan(&root, &title_finder);
+        assert_eq!(
+            hash_map! {
+                "Batman: The Telltale Series".to_string(): hash_set![LauncherGame {
+                    install_dir: Some(StrictPath::new("/games/batman-shadows-edition".to_string())),
+                    prefix: None,
+                    platform: Some(Os::Windows),
+                }],
+                "Batman: The Enemy Within - The Telltale Series".to_string(): hash_set![LauncherGame {
+                    install_dir: Some(StrictPath::new("/games/batman-shadows-edition".to_string())),
+                    prefix: None,
+                    platform: Some(Os::Windows),
+                }],
+            },
+            games,
+        );
     }
 
     #[test]
