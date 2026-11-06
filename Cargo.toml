@@ -71,7 +71,7 @@ unic-langid = "0.9.5"
 walkdir = "2.5.0"
 which = "6.0.3"
 whoami = "1.5.2"
-zip = "0.6.6"
+zip = "9.0.0"
 
 [target.'cfg(windows)'.dependencies]
 known-folders = "1.2.0"
