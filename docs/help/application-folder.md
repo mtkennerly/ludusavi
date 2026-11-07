@@ -14,3 +14,4 @@ if you're going to run Ludusavi from a flash drive on multiple computers.
 Ludusavi also stores `manifest.yaml` (info on what to back up) here.
 You should not modify that file, because Ludusavi will overwrite your changes
 whenever it downloads a new copy.
+The `manifest-cache.json` file is a disposable cache and can be deleted.
