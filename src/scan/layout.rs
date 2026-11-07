@@ -1283,14 +1283,14 @@ impl GameLayout {
             }
         };
         let mut zip = zip::ZipWriter::new(archive_file);
-        let options = zip::write::FileOptions::default()
+        let options = zip::write::FileOptions::<()>::default()
             .compression_method(match format.zip.compression {
                 ZipCompression::None => zip::CompressionMethod::Stored,
                 ZipCompression::Deflate => zip::CompressionMethod::Deflated,
                 ZipCompression::Bzip2 => zip::CompressionMethod::Bzip2,
                 ZipCompression::Zstd => zip::CompressionMethod::Zstd,
             })
-            .compression_level(format.level())
+            .compression_level(format.level().map(Into::into))
             .large_file(true);
 
         'item: for (scan_key, file) in &scan.found_files {
@@ -1942,7 +1942,7 @@ impl GameLayout {
             return Err(Box::new(e));
         }
 
-        let mtime = source_file.last_modified();
+        let mtime = source_file.last_modified().unwrap_or_else(zip::DateTime::default);
         if let Err(e) = target.set_mtime_zip(mtime) {
             log::error!(
                 "[{}] unable to set modification time: {:?} -> {:?} to {:#?} | {e:?}",
