@@ -614,7 +614,7 @@ pub fn scan_game_for_backup(
     }
 
     for root in roots_to_check {
-        log::trace!("[{name}] adding candidates from root: {:?}", &root,);
+        log::trace!("[{name}] adding candidates from root: {:?}", root,);
         if root.path().raw().trim().is_empty() {
             continue;
         }
@@ -650,7 +650,7 @@ pub fn scan_game_for_backup(
                 }
             } else {
                 for launcher_entry in launcher_entries {
-                    log::trace!("[{name}] parsing candidates with launcher info: {:?}", &launcher_entry);
+                    log::trace!("[{name}] parsing candidates with launcher info: {:?}", launcher_entry);
                     let platform = launcher_entry.platform.unwrap_or(Os::HOST);
                     let full_install_dir = launcher_entry.install_dir.as_ref();
                     let install_dir = full_install_dir.and_then(|x| root.path().suffix_for(x));
@@ -2267,7 +2267,7 @@ mod tests {
                 &title,
                 roots,
                 &StrictPath::new(repo()),
-                &Launchers::scan_dirs(roots, &manifest, &[title.clone()]),
+                &Launchers::scan_dirs(roots, &manifest, std::slice::from_ref(&title)),
                 &BackupFilter::default(),
                 None,
                 &ToggledPaths::default(),

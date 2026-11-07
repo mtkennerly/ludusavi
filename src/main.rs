@@ -272,7 +272,7 @@ fn debug_on_exit(debug: bool) {
         let path = app_dir();
         if let Err(e) = opener::open(path.raw()) {
             eprintln!("{}", TRANSLATOR.unable_to_open_dir(&path));
-            log::error!("Unable to open directory: `{:?}` - {:?}", &path, e);
+            log::error!("Unable to open directory: `{:?}` - {:?}", path, e);
         }
     }
 }

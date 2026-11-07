@@ -29,7 +29,7 @@ pub fn scan(root: &root::Legendary, title_finder: &TitleFinder) -> HashMap<Strin
 
     for game in get_games(&root.path) {
         let Some(official_title) = title_finder.find_one_by_normalized_name(&game.title) else {
-            log::trace!("Ignoring unrecognized game: {}", &game.title);
+            log::trace!("Ignoring unrecognized game: {}", game.title);
             if std::env::var(ENV_DEBUG).is_ok() {
                 eprintln!(
                     "Ignoring unrecognized game from Legendary: {} (app = {})",
@@ -41,9 +41,9 @@ pub fn scan(root: &root::Legendary, title_finder: &TitleFinder) -> HashMap<Strin
 
         log::trace!(
             "Detected game: {} | app: {}, raw title: {}",
-            &official_title,
-            &game.app_name,
-            &game.title
+            official_title,
+            game.app_name,
+            game.title
         );
         out.entry(official_title).or_default().insert(LauncherGame {
             install_dir: Some(StrictPath::new(game.install_path)),
@@ -65,7 +65,7 @@ pub fn get_games(source: &StrictPath) -> Vec<installed::Game> {
         Err(e) => {
             log::debug!(
                 "In Legendary source '{:?}', unable to read installed.json | {:?}",
-                &library,
+                library,
                 e,
             );
             return out;

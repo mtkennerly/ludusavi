@@ -887,13 +887,13 @@ impl StrictPath {
     }
 
     pub fn copy_to_path(&self, context: &str, target_file: &StrictPath) -> Result<(), std::io::Error> {
-        log::trace!("[{context}] copy {:?} -> {:?}", &self, &target_file);
+        log::trace!("[{context}] copy {:?} -> {:?}", self, target_file);
 
         if let Err(e) = target_file.create_parent_dir() {
             log::error!(
                 "[{context}] unable to create parent directories: {:?} -> {:?} | {e}",
-                &self,
-                &target_file
+                self,
+                target_file
             );
             return Err(e);
         }
@@ -901,13 +901,13 @@ impl StrictPath {
         if let Err(e) = target_file.unset_readonly() {
             log::warn!(
                 "[{context}] failed to unset read-only on target: {:?} | {e}",
-                &target_file
+                target_file
             );
             return Err(std::io::Error::other("Failed to unset read-only"));
         }
 
         if let Err(e) = self.copy_to(target_file) {
-            log::error!("[{context}] unable to copy: {:?} -> {:?} | {e}", &self, &target_file);
+            log::error!("[{context}] unable to copy: {:?} -> {:?} | {e}", self, target_file);
             return Err(e);
         }
 
@@ -915,7 +915,7 @@ impl StrictPath {
         if let Err(e) = target_file.unset_readonly() {
             log::warn!(
                 "[{context}] failed to unset read-only on target after copy: {:?} | {e}",
-                &target_file
+                target_file
             );
             return Err(std::io::Error::other("Failed to unset read-only"));
         }
@@ -925,8 +925,8 @@ impl StrictPath {
             Err(e) => {
                 log::error!(
                     "[{context}] unable to get modification time: {:?} -> {:?} | {e}",
-                    &self,
-                    &target_file,
+                    self,
+                    target_file,
                 );
                 return Err(e);
             }
@@ -934,8 +934,8 @@ impl StrictPath {
         if let Err(e) = target_file.set_mtime(mtime) {
             log::error!(
                 "[{context}] unable to set modification time: {:?} -> {:?} to {mtime:#?} | {e}",
-                &self,
-                &target_file,
+                self,
+                target_file,
             );
             return Err(e);
         }
@@ -957,7 +957,7 @@ impl StrictPath {
                 parts,
             } => (id, parts.join("/")),
             Analysis { drive: None, .. } => {
-                log::error!("Unreachable state: unable to split drive of path: {}", &self.raw);
+                log::error!("Unreachable state: unable to split drive of path: {}", self.raw);
                 unreachable!()
             }
         }

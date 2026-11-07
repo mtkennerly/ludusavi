@@ -60,7 +60,7 @@ impl RcloneProcess {
             command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
         }
 
-        log::debug!("Running command: {} {:?}", &program, &args);
+        log::debug!("Running command: {} {:?}", program, args);
 
         let mut child = command.spawn().map_err(|e| {
             let e = CommandError::Launched {

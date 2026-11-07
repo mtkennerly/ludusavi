@@ -1124,7 +1124,7 @@ impl App {
             }
             ValidatePhase::GameScanned { game, valid } => {
                 self.progress.step();
-                log::trace!("step {} / {}: {}", self.progress.current, self.progress.max, &game);
+                log::trace!("step {} / {}: {}", self.progress.current, self.progress.max, game);
                 self.operation.remove_active_game(&game);
 
                 if !valid && let Operation::ValidateBackups { faulty_games, .. } = &mut self.operation {
@@ -1291,7 +1291,7 @@ impl App {
             match result {
                 Ok(_) => Message::Ignore,
                 Err(e) => {
-                    log::error!("Unable to open URL: `{}` - {}", &url2, e);
+                    log::error!("Unable to open URL: `{}` - {}", url2, e);
                     Message::OpenUrlFailure { url: url2 }
                 }
             }

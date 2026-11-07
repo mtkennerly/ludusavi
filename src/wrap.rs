@@ -52,10 +52,10 @@ pub mod lutris {
 
     pub fn infer() -> Option<WrapGameInfo> {
         let title = if let Ok(title) = std::env::var("GAME_NAME") {
-            log::debug!("Found Lutris environment variable: GAME_NAME={}", &title);
+            log::debug!("Found Lutris environment variable: GAME_NAME={}", title);
             title
         } else if let Ok(title) = std::env::var("game_name") {
-            log::debug!("Found Lutris environment variable: game_name={}", &title);
+            log::debug!("Found Lutris environment variable: game_name={}", title);
             title
         } else {
             return None;
@@ -85,9 +85,9 @@ pub mod lutris {
 
         log::debug!(
             "Found Lutris environment variables for inferred game '{}': GAME_DIRECTORY={:?}, WINEPREFIX={:?}",
-            &title,
-            &base,
-            &prefix
+            title,
+            base,
+            prefix
         );
 
         Some(Metadata {
