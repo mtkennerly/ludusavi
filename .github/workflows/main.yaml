@@ -24,7 +24,7 @@ jobs:
             artifact-name: linux
             artifact-file: ludusavi
             tar: true
-          - os: macos-14
+          - os: macos-latest
             rust-target: aarch64-apple-darwin
             artifact-name: mac
             artifact-file: ludusavi
