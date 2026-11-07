@@ -52,8 +52,8 @@ pub fn scan(root: &root::Heroic, title_finder: &TitleFinder) -> HashMap<String, 
 
         log::trace!(
             "Detected game: {} | app: {}, raw title: {}",
-            &official_title,
-            &app_id,
+            official_title,
+            app_id,
             raw_title
         );
         let platform = game.install.platform.as_deref();
@@ -76,7 +76,7 @@ pub fn get_library(source: &StrictPath) -> HashMap<String, library::Game> {
     let content = match file.try_read() {
         Ok(content) => content,
         Err(e) => {
-            log::debug!("In sideload source '{:?}', unable to read library | {:?}", &file, e);
+            log::debug!("In sideload source '{:?}', unable to read library | {:?}", file, e);
             return out;
         }
     };

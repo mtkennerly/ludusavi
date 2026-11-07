@@ -104,7 +104,7 @@ fn find_prefix(
     let content = match games_config_path.try_read() {
         Ok(content) => content,
         Err(e) => {
-            log::trace!("Failed to read {:?}: {}", &games_config_path, e);
+            log::trace!("Failed to read {:?}: {}", games_config_path, e);
             return None;
         }
     };
@@ -155,7 +155,7 @@ fn find_prefix(
             }
         }
         Err(e) => {
-            log::trace!("Failed to parse {:?}: {}", &games_config_path, e);
+            log::trace!("Failed to parse {:?}: {}", games_config_path, e);
             None
         }
     }

@@ -181,7 +181,7 @@ impl ManifestConfig {
 
                     let manifest = Manifest::load_from_existing(path);
                     if let Err(e) = &manifest {
-                        log::error!("Cannot load secondary manifest: {:?} | {}", &path, e);
+                        log::error!("Cannot load secondary manifest: {:?} | {}", path, e);
                     }
                     Some(manifest::Secondary {
                         id: path.render(),
@@ -197,7 +197,7 @@ impl ManifestConfig {
                     let path = Manifest::path_for(url, false);
                     let manifest = Manifest::load_from(&path);
                     if let Err(e) = &manifest {
-                        log::error!("Cannot load manifest: {:?} | {}", &path, e);
+                        log::error!("Cannot load manifest: {:?} | {}", path, e);
                     }
                     Some(manifest::Secondary {
                         id: url.to_string(),
@@ -523,7 +523,7 @@ impl Root {
             .filter_map(|path| match Manifest::load_from(&path) {
                 Ok(manifest) => {
                     log::info!("Loaded secondary manifest: {}", path.render());
-                    log::trace!("Secondary manifest content: {:?}", &manifest);
+                    log::trace!("Secondary manifest content: {:?}", manifest);
                     Some((path, manifest))
                 }
                 Err(e) => {
@@ -1746,7 +1746,7 @@ impl Config {
         for root in &self.roots {
             log::trace!(
                 "Configured root: {:?} | interpreted: {:?} | exists: {} | is dir: {}",
-                &root,
+                root,
                 root.path().interpret(),
                 root.path().exists(),
                 root.path().is_dir()
@@ -1768,7 +1768,7 @@ impl Config {
         for root in &expanded {
             log::trace!(
                 "Expanded root: {:?} | interpreted: {:?} | exists: {} | is dir: {}",
-                &root,
+                root,
                 root.path().interpret(),
                 root.path().exists(),
                 root.path().is_dir()

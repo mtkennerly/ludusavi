@@ -32,16 +32,16 @@ impl SteamShortcuts {
 
         for shortcut in shortcuts.filter_map(|x| x.ok()) {
             let Some(official_title) = title_finder.find_one_by_normalized_name(&shortcut.app_name) else {
-                log::debug!("Ignoring unrecognized Steam shortcut: {}", &shortcut.app_name);
+                log::debug!("Ignoring unrecognized Steam shortcut: {}", shortcut.app_name);
                 continue;
             };
 
             log::trace!(
                 "Found Steam shortcut: app_name='{}', official_title='{}', id={}, start_dir='{}'",
-                &shortcut.app_name,
-                &official_title,
+                shortcut.app_name,
+                official_title,
                 shortcut.app_id,
-                &shortcut.start_dir
+                shortcut.start_dir
             );
             let start_dir = std::path::Path::new(shortcut.start_dir.trim_start_matches('"').trim_end_matches('"'));
             instance.0.insert(

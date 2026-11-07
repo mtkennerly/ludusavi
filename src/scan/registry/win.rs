@@ -262,14 +262,14 @@ impl Hives {
         };
 
         let Some(hive) = get_hkey_from_name(&hive_name) else {
-            log::error!("[{game}] Unable to parse hive name: {:?}", &hive_name);
+            log::error!("[{game}] Unable to parse hive name: {:?}", hive_name);
             return Err(BackupError::Raw(format!("Unable to parse hive: {}", hive_name)));
         };
 
         let subkey = match winreg::RegKey::predef(hive).open_subkey(&key) {
             Ok(x) => x,
             Err(e) => {
-                log::error!("[{game}] Unable to open subkey: {}", &key);
+                log::error!("[{game}] Unable to open subkey: {}", key);
                 return Err(BackupError::Raw(format!("Unable to open subkey: {e:?}")));
             }
         };
@@ -329,11 +329,7 @@ impl Hives {
                 let key = match hive.create_subkey(key_name) {
                     Ok((key, _)) => key,
                     Err(e) => {
-                        log::error!(
-                            "[{}] Registry - failed to create subkey: {:?} | {e:?}",
-                            game_name,
-                            &path
-                        );
+                        log::error!("[{}] Registry - failed to create subkey: {:?} | {e:?}", game_name, path);
                         failed.insert(path.clone(), BackupError::Raw(e.to_string()));
                         continue;
                     }
@@ -350,7 +346,7 @@ impl Hives {
                             log::error!(
                                 "[{}] Registry - failed to set value: {:?} ; {} | {e:?}",
                                 game_name,
-                                &path,
+                                path,
                                 entry_name
                             );
                             failed.insert(path.clone(), BackupError::Raw(e.to_string()));
@@ -359,7 +355,7 @@ impl Hives {
                         log::warn!(
                             "[{}] Registry - unparsed entry: {:?} ; {} | {:?}",
                             game_name,
-                            &path,
+                            path,
                             entry_name,
                             entry
                         );

@@ -38,8 +38,8 @@ pub fn scan(
         let Some(official_title) = title_finder.find_one_by_normalized_name(&game.title) else {
             log::trace!(
                 "Ignoring unrecognized installed game: {}, app: {}",
-                &game.title,
-                &game.app_name
+                game.title,
+                game.app_name
             );
             if std::env::var(ENV_DEBUG).is_ok() {
                 eprintln!(
@@ -52,9 +52,9 @@ pub fn scan(
 
         log::trace!(
             "Detected game from installation: {} | app: {}, raw title: {}",
-            &official_title,
-            &game.app_name,
-            &game.title
+            official_title,
+            game.app_name,
+            game.title
         );
         let prefix = find_prefix(&root.path, &game.title, Some(&game.platform), &game.app_name);
         games.entry(official_title).or_default().insert(LauncherGame {
@@ -72,17 +72,17 @@ pub fn scan(
         let Some(official_title) = title_finder.find_one_by_normalized_name(&game.title) else {
             log::trace!(
                 "Ignoring unrecognized library game: {}, app: {}",
-                &game.title,
-                &game.app_name
+                game.title,
+                game.app_name
             );
             continue;
         };
 
         log::trace!(
             "Detected game from library: {} | app: {}, raw title: {}",
-            &official_title,
-            &game.app_name,
-            &game.title
+            official_title,
+            game.app_name,
+            game.title
         );
         let prefix = find_prefix(&root.path, &game.title, None, &game.app_name);
         games.entry(official_title).or_default().insert(LauncherGame {
@@ -105,7 +105,7 @@ pub fn get_library(root: &root::Heroic) -> HashMap<String, library::Game> {
         Err(e) => {
             log::debug!(
                 "In Heroic Legendary source '{:?}', unable to read library | {:?}",
-                &file,
+                file,
                 e
             );
             return out;

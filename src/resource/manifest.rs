@@ -800,7 +800,7 @@ impl Manifest {
     }
 
     pub fn incorporate_secondary_manifest(&mut self, secondary: Secondary) {
-        log::debug!("incorporating secondary manifest: {}", &secondary.id);
+        log::debug!("incorporating secondary manifest: {}", secondary.id);
         let manifest = secondary.data.0;
 
         for (name, mut game) in manifest {

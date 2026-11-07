@@ -80,7 +80,7 @@ fn parse_game(game: Option<String>) -> Option<String> {
                 None
             } else {
                 let game = stdin.lines().next().and_then(Result::ok);
-                log::debug!("Game from stdin: {:?}", &game);
+                log::debug!("Game from stdin: {:?}", game);
                 game
             }
         }
@@ -98,7 +98,7 @@ fn parse_games(games: Vec<String>) -> Vec<String> {
             vec![]
         } else {
             let games = stdin.lines().map_while(Result::ok).collect();
-            log::debug!("Games from stdin: {:?}", &games);
+            log::debug!("Games from stdin: {:?}", games);
             games
         }
     }
@@ -1106,7 +1106,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             } else {
                 unreachable!();
             };
-            log::debug!("Wrap game info: {:?}", &wrap_game_info);
+            log::debug!("Wrap game info: {:?}", wrap_game_info);
 
             // Check game identifiers against the manifest
             //
@@ -1123,7 +1123,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 })
             });
             let games = game_name.as_ref().map(|game| vec![game.clone()]).unwrap_or_default();
-            log::debug!("Title finder result: {:?}", &game_name);
+            log::debug!("Title finder result: {:?}", game_name);
 
             match game_name.as_ref() {
                 Some(game_name) => {

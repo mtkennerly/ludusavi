@@ -77,7 +77,7 @@ pub fn scan(root: &root::Heroic, title_finder: &TitleFinder) -> HashMap<String, 
                     ..Default::default()
                 };
                 let Some(official_title) = title_finder.find_one(query) else {
-                    log::trace!("Ignoring unrecognized game: {}, app: {}", &game_title, &game.app_name);
+                    log::trace!("Ignoring unrecognized game: {}, app: {}", game_title, game.app_name);
                     if std::env::var(ENV_DEBUG).is_ok() {
                         eprintln!(
                             "Ignoring unrecognized game from Heroic/GOG: {} (app = {})",
@@ -89,9 +89,9 @@ pub fn scan(root: &root::Heroic, title_finder: &TitleFinder) -> HashMap<String, 
 
                 log::trace!(
                     "Detected game: {} | app: {}, raw title: {}",
-                    &official_title,
-                    &game.app_name,
-                    &game_title
+                    official_title,
+                    game.app_name,
+                    game_title
                 );
                 let prefix = find_prefix(&root.path, game_title, Some(&game.platform), &game.app_name);
                 games.entry(official_title).or_default().insert(LauncherGame {
@@ -102,7 +102,7 @@ pub fn scan(root: &root::Heroic, title_finder: &TitleFinder) -> HashMap<String, 
             }
         }
         Err(e) => {
-            log::warn!("Unable to parse installed list from {:?}: {}", &installed_path, e);
+            log::warn!("Unable to parse installed list from {:?}: {}", installed_path, e);
         }
     }
 
@@ -124,12 +124,12 @@ pub fn get_library(root: &root::Heroic) -> Vec<library::Game> {
 
     match serde_json::from_str::<library::Data>(&library_path.read().unwrap_or_default()) {
         Ok(gog_library) => {
-            log::trace!("Found {} games in {:?}", gog_library.games.len(), &library_path);
+            log::trace!("Found {} games in {:?}", gog_library.games.len(), library_path);
 
             gog_library.games
         }
         Err(e) => {
-            log::warn!("Unable to parse library in {:?}: {}", &library_path, e);
+            log::warn!("Unable to parse library in {:?}: {}", library_path, e);
             vec![]
         }
     }

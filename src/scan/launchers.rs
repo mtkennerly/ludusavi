@@ -66,7 +66,7 @@ impl Launchers {
                 continue;
             }
 
-            log::debug!("Scanning launcher info: {:?}", &root);
+            log::debug!("Scanning launcher info: {:?}", root);
             let mut found = match root {
                 Root::Faugus(root) => faugus::scan(root, title_finder),
                 Root::Heroic(root) => heroic::scan(root, title_finder, legendary.as_ref()),
@@ -78,7 +78,7 @@ impl Launchers {
                 v.retain(|x| !x.is_empty());
                 !v.is_empty()
             });
-            log::debug!("launcher games found ({:?}): {:#?}", &root, &found);
+            log::debug!("launcher games found ({:?}): {:#?}", root, found);
             if !found.is_empty() {
                 instance.games.entry(root.clone()).or_default().extend(found);
             }

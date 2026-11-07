@@ -50,7 +50,7 @@ fn fuzzy_match(
 }
 
 pub fn scan(root: &Root, manifest: &Manifest, subjects: &[String]) -> HashMap<String, HashSet<LauncherGame>> {
-    log::debug!("ranking installations for root: {:?}", &root);
+    log::debug!("ranking installations for root: {:?}", root);
 
     let install_parent = root.games_path();
     let matcher = make_fuzzy_matcher();

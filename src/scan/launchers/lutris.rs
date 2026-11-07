@@ -141,7 +141,7 @@ fn normalize_install_dir(candidate: &StrictPath, prefix: &StrictPath) -> Option<
 }
 
 pub fn scan(root: &root::Lutris, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
-    log::trace!("Scanning Lutris root for games: {:?}", &root);
+    log::trace!("Scanning Lutris root for games: {:?}", root);
 
     let mut groups = HashMap::<spec::Id, PendingGroup>::new();
     match scan_db(root) {
@@ -191,7 +191,7 @@ pub fn scan(root: &root::Lutris, title_finder: &TitleFinder) -> HashMap<String, 
         });
     }
 
-    log::trace!("Finished scanning Lutris root for games: {:?}", &root.path);
+    log::trace!("Finished scanning Lutris root for games: {:?}", root.path);
 
     games
 }
