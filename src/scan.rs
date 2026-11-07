@@ -2267,7 +2267,7 @@ mod tests {
                 &title,
                 roots,
                 &StrictPath::new(repo()),
-                &Launchers::scan_dirs(roots, &manifest, &[title.clone()]),
+                &Launchers::scan_dirs(roots, &manifest, std::slice::from_ref(&title)),
                 &BackupFilter::default(),
                 None,
                 &ToggledPaths::default(),
