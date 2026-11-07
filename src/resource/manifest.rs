@@ -460,7 +460,7 @@ struct ManifestCache {
 
 impl Manifest {
     fn cache_path() -> StrictPath {
-        app_dir().joined("manifest-cache.json")
+        app_dir().joined("cache/manifest.json")
     }
 
     fn load_cached(path: &StrictPath, cache_path: &StrictPath) -> Result<Self, crate::prelude::AnyError> {
@@ -493,6 +493,8 @@ impl Manifest {
     /// because sandboxed instances (e.g., Flatpak) can share a process ID.
     fn save_cache(cache_path: &StrictPath, cache: &ManifestCache) -> std::io::Result<()> {
         use std::io::Write;
+
+        cache_path.create_parent_dir()?;
 
         let path = cache_path.as_std_path_buf()?;
         let folder = path
