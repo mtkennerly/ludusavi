@@ -36,6 +36,12 @@ along with the root's type:
 * For a Faugus root, this should be the folder containing `games.json`.
   That's typically `~/.config/faugus-launcher` or `~/.var/app/io.github.Faugus.faugus-launcher/config/faugus-launcher`.
 -->
+<!--
+* For an Epic root, this should either be:
+
+  * the folder you chose as the "install location" for your games (original 2018 launcher)
+  * the folder containing `installations.jsonl` (new 2026 launcher)
+-->
 * For the "other" root type and the remaining store-specific roots,
   this should be a folder whose direct children are individual games.
   For example, in the Epic Games store, this would be what you choose as the

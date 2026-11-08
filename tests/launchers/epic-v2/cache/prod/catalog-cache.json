@@ -1,0 +1,16 @@
+{
+    "items": {
+        "exact": {
+            "item": {
+                "id": "exact",
+                "title": "Exact Match"
+            }
+        },
+        "fuzzy": {
+            "item": {
+                "id": "fuzzy",
+                "title": "fuZZy: MATch™"
+            }
+        }
+    }
+}

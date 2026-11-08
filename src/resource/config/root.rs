@@ -38,6 +38,17 @@ pub struct Epic {
     pub path: StrictPath,
 }
 
+impl Epic {
+    pub const FLATPAK_SUFFIX: &str = ".var/app/com.epicgames.eglv2/data/com.epicgames.eglv2";
+
+    pub fn flatpak_home(&self) -> Option<StrictPath> {
+        self.path
+            .raw()
+            .ends_with(Self::FLATPAK_SUFFIX)
+            .then(|| self.path.popped().popped())
+    }
+}
+
 #[derive(
     Clone,
     Debug,

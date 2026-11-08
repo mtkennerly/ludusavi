@@ -1466,6 +1466,13 @@ impl Config {
             // Epic:
             (format!("{pf32}/Epic Games"), Store::Epic),
             (format!("{pf64}/Epic Games"), Store::Epic),
+            // Epic v2
+            ("~/AppData/Local/com.epicgames.eglv2".to_string(), Store::Epic),
+            ("~/.local/share/com.epicgames.eglv2".to_string(), Store::Epic),
+            (
+                "~/.var/app/com.epicgames.eglv2/data/com.epicgames.eglv2".to_string(),
+                Store::Epic,
+            ),
             // GOG:
             ("C:/GOG Games".to_string(), Store::Gog),
             ("~/GOG Games".to_string(), Store::Gog),

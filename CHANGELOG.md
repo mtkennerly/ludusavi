@@ -11,6 +11,10 @@
     As it is an experimental feature, it requires some manual configuration and has some caveats.
   * Ludusavi can now detect saves and Wine prefixes for the Faugus game launcher.
     It will automatically detect the standard Faugus root locations as well.
+  * Epic roots now support the new Epic launcher (which is in beta as of this writing).
+    This behavior triggers when you configure the root as the folder containing `installations.jsonl`.
+    Ludusavi will also scan any associated Wine prefixes on Linux.
+    ([Prototyped by sehraf](https://github.com/mtkennerly/ludusavi/issues/656))
   * The Mac download now includes `Ludusavi.app` for more standard packaging,
     alongside a `ludusavi` symlink pointing to the inner executable.
     ([Contributed by marcodallagatta](https://github.com/mtkennerly/ludusavi/pull/642))
