@@ -63,4 +63,9 @@ impl SteamShortcuts {
     pub fn get(&self, name: &str) -> Option<&SteamShortcut> {
         self.0.get(name)
     }
+
+    #[cfg(test)]
+    pub fn with(name: &str, shortcut: SteamShortcut) -> Self {
+        Self(HashMap::from([(name.to_string(), shortcut)]))
+    }
 }

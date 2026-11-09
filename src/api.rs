@@ -143,6 +143,14 @@ impl Ludusavi {
 
         let mut duplicate_detector = DuplicateDetector::default();
         let launchers = Launchers::scan(&roots, &self.manifest, &games, &self.title_finder, None);
+        let prefix_candidates = semantic::PrefixCandidates::new(
+            &self.config,
+            &self.manifest,
+            &roots,
+            &launchers,
+            &self.steam_shortcuts,
+            &games,
+        );
 
         let cloud_sync = self.config.cloud.synchronize
             && !finality.preview()
@@ -196,7 +204,7 @@ impl Ludusavi {
             log::trace!("step {i} / {}: {name}", games.len());
             let game = &self.manifest.0[name];
 
-            let wine_ctx = semantic::Wine::for_game(name, &self.config);
+            let wine_ctx = prefix_candidates.for_game(name, &self.config);
             let previous = self.layout.latest_backup(
                 name,
                 ScanKind::Backup,
@@ -330,6 +338,8 @@ impl Ludusavi {
         let games_specified = !games.is_empty();
         let games = evaluate_games(self.manifest.primary_titles(), games, &self.title_finder)?;
 
+        let prefix_candidates =
+            semantic::PrefixCandidates::scan(&self.config, &self.manifest, &self.title_finder, &games);
         let mut duplicate_detector = DuplicateDetector::default();
 
         let cloud_sync = self.config.cloud.synchronize
@@ -373,7 +383,7 @@ impl Ludusavi {
             log::trace!("step {i} / {}: {name}", games.len());
             let mut layout = self.layout.game_layout(name);
 
-            let wine_ctx = semantic::Wine::for_game(name, &self.config);
+            let wine_ctx = prefix_candidates.for_game(name, &self.config);
             let scan_info = layout.scan_for_restoration(
                 name,
                 backup_id.as_ref().unwrap_or(&BackupId::Latest),
