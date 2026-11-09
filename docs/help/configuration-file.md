@@ -12,7 +12,7 @@ using the CLI exclusively, then you'll need to edit `config.yaml` yourself.
 ## Example
 ```yaml
 manifest:
-  url: "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"
+  url: "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/refs/heads/data/data/manifest.yaml"
 roots:
   - path: "D:/Steam"
     store: steam

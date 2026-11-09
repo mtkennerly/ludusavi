@@ -19,7 +19,7 @@ use crate::{
 };
 
 pub const MANIFEST_URL: &str =
-    "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
+    "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/refs/heads/data/data/manifest.yaml";
 
 fn default_backup_dir() -> StrictPath {
     StrictPath::new(format!("{}/ludusavi-backup", CommonPath::Home.get().unwrap())).rendered()
@@ -147,7 +147,7 @@ impl Default for Release {
 #[serde(default, rename_all = "camelCase")]
 pub struct ManifestConfig {
     /// Where to download the primary manifest.
-    /// Default: https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml
+    /// Default: https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/refs/heads/data/data/manifest.yaml
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     pub enable: bool,

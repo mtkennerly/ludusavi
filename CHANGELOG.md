@@ -39,6 +39,11 @@
 * Changed:
   * Loading the primary manifest is faster after the first load.
     ([Contributed by beallio](https://github.com/mtkennerly/ludusavi/pull/661))
+  * By default, the primary manifest is now downloaded from
+    `https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/refs/heads/data/data/manifest.yaml`
+    instead of
+    `https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml`.
+    This is in an effort to reduce the growth rate of the `ludusavi-manifest` repository's history size.
 
 ## v0.31.0 (2026-04-04)
 
