@@ -36,6 +36,8 @@
   * CLI: `--full-limit 0` would result in no backups being created or retained.
     0 is now rejected before the command runs.
     ([Contributed by rleeon](https://github.com/mtkennerly/ludusavi/pull/647))
+  * On Linux, when a game's path includes a literal `C:` drive,
+    it will be mapped to the `drive_c` folder of a Wine prefix being scanned.
 * Changed:
   * Loading the primary manifest is faster after the first load.
     ([Contributed by beallio](https://github.com/mtkennerly/ludusavi/pull/661))

@@ -149,6 +149,8 @@ pub fn parse_paths(
 ) -> HashSet<(StrictPath, bool)> {
     use crate::resource::manifest::placeholder as p;
 
+    const DRIVE_C: &str = "C:";
+
     let mut paths = HashSet::new();
 
     macro_rules! add_path {
@@ -295,6 +297,7 @@ pub fn parse_paths(
                 for id in ids.steam(steam_shortcut.map(|x| x.id)) {
                     let prefix = format!("{}/steamapps/compatdata/{}/pfx/drive_c", root_globbable, id);
                     let path2 = path
+                        .replace(DRIVE_C, &prefix)
                         .replace(p::ROOT, &root_globbable)
                         .replace(p::GAME, &install_dir)
                         .replace(p::BASE, &full_install_dir)
@@ -332,7 +335,8 @@ pub fn parse_paths(
                     if data.when.iter().any(|x| x.store == Some(Store::Uplay)) {
                         let ubisoft = format!("{prefix}/Program Files (x86)/Ubisoft/Ubisoft Game Launcher");
                         add_path!(
-                            path.replace(p::ROOT, &ubisoft)
+                            path.replace(DRIVE_C, &prefix)
+                                .replace(p::ROOT, &ubisoft)
                                 .replace(p::GAME, &install_dir)
                                 .replace(p::BASE, &format!("{}/{}", ubisoft, install_dir))
                                 .replace(p::STORE_USER_ID, "*")
@@ -375,6 +379,13 @@ pub fn parse_paths(
                 .replace(p::WIN_DIR, &format!("{prefix}/windows"))
                 .replace(p::XDG_DATA, check_nonwindows_path(data_dir))
                 .replace(p::XDG_CONFIG, check_nonwindows_path(config_dir));
+
+            let path2 = if Os::HOST == Os::Linux {
+                path2.replace(DRIVE_C, &prefix)
+            } else {
+                path2
+            };
+
             add_path_insensitive!(
                 path2
                     .replace(p::WIN_DOCUMENTS, &format!("{prefix}/users/*/Documents"))
