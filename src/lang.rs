@@ -358,11 +358,32 @@ fn translate_args(id: &str, args: &FluentArgs) -> String {
 }
 
 impl Translator {
+    pub fn automatic_backup_text(&self, id: &str) -> String {
+        translate(id)
+    }
+
+    #[cfg(windows)]
+    pub fn automatic_backup_game(&self, id: &str, game: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(GAME, game);
+        translate_args(id, &args)
+    }
+
     pub fn set_language(&self, language: Language) {
         set_language(Language::English);
         if language != Language::English {
             set_language(language);
         }
+    }
+
+    #[cfg(windows)]
+    pub fn automatic_backup_error(&self, id: &str, game: Option<&str>, reason: &str) -> String {
+        let mut args = FluentArgs::new();
+        if let Some(game) = game {
+            args.set(GAME, game);
+        }
+        args.set("reason", reason);
+        translate_args(id, &args)
     }
 
     pub fn app_name(&self) -> String {

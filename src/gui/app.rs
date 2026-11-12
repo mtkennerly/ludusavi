@@ -39,6 +39,9 @@ use crate::{
     },
 };
 
+#[cfg(windows)]
+use super::background;
+
 pub struct Executor(tokio::runtime::Runtime);
 
 impl iced::Executor for Executor {
@@ -114,18 +117,51 @@ pub struct App {
     rclone_monitor_sender: Option<iced::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
     exiting: bool,
     pending_save: HashMap<SaveKind, Instant>,
+    #[cfg(windows)]
+    background_config: Option<background::Config>,
+    #[cfg(windows)]
+    background_instance: Option<background::Instance>,
+    #[cfg(windows)]
+    background_settings: background::Settings,
+    #[cfg(windows)]
+    background_revision: u64,
+    #[cfg(windows)]
+    background: Option<background::Background>,
+    #[cfg(windows)]
+    background_backup: Option<background::BackupRun>,
+    #[cfg(windows)]
+    background_last_poll: Option<Instant>,
+    #[cfg(windows)]
+    window: Option<iced::window::Id>,
+    #[cfg(windows)]
+    background_settings_window: Option<iced::window::Id>,
+    #[cfg(windows)]
+    hidden: bool,
     modifiers: keyboard::Modifiers,
     jump_to_game_after_scan: Option<String>,
 }
 
 impl App {
     fn go_idle(&mut self) {
+        #[cfg(windows)]
+        self.finish_background_backup();
+        self.operation = Operation::Idle;
         if self.exiting {
-            self.save();
-            std::process::exit(0);
+            #[cfg(windows)]
+            if !self.save_pending(true) {
+                self.exiting = false;
+                self.close_specific_modal_alt(modal::Kind::Exiting);
+                let _ = self.show_error(Error::SomeEntriesFailed);
+            } else {
+                std::process::exit(0);
+            }
+            #[cfg(not(windows))]
+            {
+                self.save();
+                std::process::exit(0);
+            }
         }
 
-        self.operation = Operation::Idle;
         self.operation_steps.clear();
         self.operation_steps_active = 0;
         self.close_specific_modal_alt(modal::Kind::ActiveScanGames);
@@ -133,6 +169,35 @@ impl App {
         self.operation_should_cancel
             .swap(false, std::sync::atomic::Ordering::Relaxed);
         self.notify_on_single_game_scanned = None;
+    }
+
+    #[cfg(windows)]
+    fn finish_background_backup(&mut self) -> Option<background::BackupNotice> {
+        let run = self.background_backup.take()?;
+        let notice = run.finished(
+            self.operation.errors().map(Vec::as_slice).unwrap_or_default(),
+            self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed),
+        );
+        if notice.failed {
+            log::warn!("{}: {}", notice.title, notice.body);
+        } else {
+            log::info!("{}: {}", notice.title, notice.body);
+        }
+        if let Some(background) = &self.background {
+            match background.notify_backup(&notice) {
+                Ok(()) => log::info!("Windows backup result notification submitted: {}", notice.title),
+                Err(why) => log::warn!("{why}"),
+            }
+        }
+        Some(notice)
+    }
+
+    #[cfg(windows)]
+    fn fail_background_backup(&mut self, error: &Error) {
+        if let Some(run) = self.background_backup.as_mut() {
+            run.result = background::BackupResult::Failed(TRANSLATOR.handle_error(error));
+        }
+        self.finish_background_backup();
     }
 
     fn show_modal(&mut self, modal: Modal) -> Task<Message> {
@@ -181,6 +246,256 @@ impl App {
         self.show_modal(Modal::Error { variant: error })
     }
 
+    #[cfg(windows)]
+    fn show_window(&mut self) -> Task<Message> {
+        self.hidden = false;
+        self.window
+            .map(|id| {
+                Task::batch([
+                    iced::window::minimize(id, false),
+                    iced::window::set_mode(id, iced::window::Mode::Windowed)
+                        .chain(iced::window::gain_focus(id))
+                        .chain(iced::window::request_user_attention(
+                            id,
+                            Some(iced::window::UserAttention::Informational),
+                        )),
+                ])
+            })
+            .unwrap_or_else(Task::none)
+    }
+
+    #[cfg(windows)]
+    fn hide_window(&self, id: iced::window::Id) -> Task<Message> {
+        if self.background.as_ref().is_some_and(background::Background::has_tray) {
+            iced::window::set_mode(id, iced::window::Mode::Hidden)
+        } else {
+            iced::window::minimize(id, true)
+        }
+    }
+
+    #[cfg(windows)]
+    fn background_tick(&mut self) -> Task<Message> {
+        let Some(background) = self.background.as_ref() else {
+            return Task::none();
+        };
+        let mut tasks = Vec::new();
+        for action in background.actions() {
+            match action {
+                background::Action::Show => tasks.push(self.show_window()),
+                background::Action::OpenCustomGame(name) => {
+                    if let Some(game) = self.config.custom_games.iter_mut().find(|game| game.name == name) {
+                        game.expanded = true;
+                        tasks.push(self.switch_screen(Screen::CustomGames));
+                        tasks.push(self.update(Message::ShowCustomGame { name }));
+                    } else {
+                        tasks.push(self.customize_game(name));
+                    }
+                    tasks.push(self.show_window());
+                }
+                background::Action::Pause(paused) => {
+                    if let Some(background) = self.background.as_mut() {
+                        background.set_paused(paused);
+                    }
+                }
+                background::Action::Configure => {
+                    tasks.push(self.open_background_settings());
+                }
+                background::Action::Quit => return self.update(Message::Exit { user: true }),
+            }
+        }
+        if self.hidden
+            && self
+                .modals
+                .iter()
+                .any(|m| matches!(m.kind(), modal::Kind::Error | modal::Kind::Errors))
+        {
+            tasks.push(self.show_window());
+        }
+        let background = self.background.as_mut().unwrap();
+        if !self.exiting
+            && !background.paused
+            && !background.polling
+            && self
+                .background_last_poll
+                .is_none_or(|last| last.elapsed() >= Duration::from_secs(1))
+        {
+            background.polling = true;
+            self.background_last_poll = Some(Instant::now());
+            let revision = self.background_revision;
+            let processes = background.processes.clone();
+            let confirm = background
+                .monitor
+                .confirm_discovery(self.operation.idle() && self.modals.is_empty());
+            tasks.push(Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || {
+                        let config = background::Config::load().map_err(|e| e.to_string())?;
+                        config.validate()?;
+                        let running = processes.lock().map_err(|e| e.to_string())?.running_games(
+                            &config,
+                            Instant::now(),
+                            confirm,
+                        )?;
+                        Ok((config, running))
+                    })
+                    .await
+                    .unwrap_or_else(|e| Err(e.to_string()))
+                },
+                move |result| Message::BackgroundPolled(revision, result),
+            ));
+        }
+        Task::batch(tasks)
+    }
+
+    #[cfg(windows)]
+    fn edit_background(&mut self, edit: background::Edit) -> Task<Message> {
+        use background::Edit;
+        let mut config = self.background_settings.config.clone();
+        match edit {
+            Edit::Search(value) => {
+                self.background_settings.search = value;
+                return Task::none();
+            }
+            Edit::ChooseGame(name) => {
+                if self.backup_screen.log.find_game(&name).is_none() {
+                    return Task::none();
+                }
+                return self.update(Message::BrowseFile(BrowseFileSubject::BackgroundExecutable(name)));
+            }
+            Edit::Pause(paused) => {
+                if let Some(background) = self.background.as_mut() {
+                    background.set_paused(paused);
+                }
+                return Task::none();
+            }
+            Edit::Enable(enabled) => config.enabled = enabled,
+            Edit::Delay(seconds) => config.delay_seconds = seconds.clamp(0, 3600) as u64,
+            Edit::Poll(seconds) => config.poll_seconds = seconds.clamp(1, 60) as u64,
+            Edit::GameEnabled(i, enabled) => {
+                if let Some(game) = config.games.get_mut(i) {
+                    game.enabled = enabled;
+                }
+            }
+            Edit::Remove(i) => {
+                if i < config.games.len() {
+                    config.games.remove(i);
+                }
+            }
+            Edit::RemoveExecutable(i, j) => {
+                if let Some(game) = config.games.get_mut(i)
+                    && j < game.executables.len()
+                {
+                    game.executables.remove(j);
+                    if game.executables.is_empty() {
+                        config.games.remove(i);
+                    }
+                }
+            }
+            Edit::AddExecutable(name, executable) => {
+                if self.backup_screen.log.find_game(&name).is_none()
+                    && !config.games.iter().any(|game| game.name == name)
+                {
+                    return self.show_error(Error::ConfigInvalid {
+                        why: TRANSLATOR.automatic_backup_text("automatic-backup-choose-discovered"),
+                    });
+                }
+                if let Err(why) = config.add_executable(name, executable) {
+                    return self.show_error(Error::ConfigInvalid { why });
+                }
+            }
+        }
+        // Create the tray before persisting an enabled state, so a tray failure stays disabled.
+        let new_background = if config.enabled && self.background.is_none() {
+            match background::Background::new(config.clone(), None) {
+                Ok(background) => Some(background),
+                Err(why) => return self.show_error(Error::ConfigInvalid { why }),
+            }
+        } else {
+            None
+        };
+        if let Err(why) = config.persist() {
+            return self.show_error(Error::ConfigInvalid { why });
+        }
+        if let Some(background) = new_background {
+            self.background = Some(background);
+        }
+        if let Some(background) = self.background.as_mut() {
+            background.monitor.reconfigure(&background.config, &config);
+            background.config = config.clone();
+            background.polling = false;
+        }
+        self.background_revision += 1;
+        self.background_settings.config = config;
+        if !self.background_settings.config.enabled {
+            self.background = None;
+            if self.hidden {
+                return self.show_window();
+            }
+        }
+        Task::none()
+    }
+
+    #[cfg(windows)]
+    fn open_background_settings(&mut self) -> Task<Message> {
+        if let Some(id) = self.background_settings_window {
+            return iced::window::gain_focus(id);
+        }
+        let (id, open) = iced::window::open(super::window_settings());
+        self.background_settings_window = Some(id);
+        open.map(|_| Message::Ignore)
+    }
+
+    #[cfg(windows)]
+    fn save(&mut self) {
+        self.save_pending(false);
+    }
+
+    #[cfg(windows)]
+    fn save_pending(&mut self, force: bool) -> bool {
+        let threshold = Duration::from_secs(1);
+        let now = Instant::now();
+        let mut metadata_save_error = None;
+        let backing_up = matches!(self.operation, Operation::Backup { .. });
+
+        self.pending_save.retain(|item, then| {
+            if !force && (now - *then) < threshold {
+                return true;
+            }
+
+            match item {
+                SaveKind::Config => self.config.save(),
+                SaveKind::Cache => self.cache.save(),
+                SaveKind::Backup(game) => {
+                    if backing_up {
+                        return true;
+                    }
+                    if let Err(error) = self.restore_screen.log.save_layout(game) {
+                        metadata_save_error = Some((game.clone(), error.to_string()));
+                        return true;
+                    }
+                }
+            }
+
+            false
+        });
+        let saved = metadata_save_error.is_none();
+        if let Some((game, why)) = metadata_save_error {
+            self.timed_notification = Some(
+                Notification::new(TRANSLATOR.automatic_backup_error(
+                    "automatic-backup-metadata-error",
+                    Some(&game),
+                    &why,
+                ))
+                .action(
+                    &TRANSLATOR.automatic_backup_text("automatic-backup-discard-metadata"),
+                    Message::DiscardBackupMetadata(game),
+                ),
+            );
+        }
+        saved
+    }
+
+    #[cfg(not(windows))]
     fn save(&mut self) {
         let threshold = Duration::from_secs(1);
         let now = Instant::now();
@@ -307,6 +622,11 @@ impl App {
                 if !self.operation.idle() {
                     return Task::none();
                 }
+                #[cfg(windows)]
+                if !self.save_pending(true) {
+                    self.fail_background_backup(&Error::SomeEntriesFailed);
+                    return self.show_error(Error::SomeEntriesFailed);
+                }
 
                 let mut cleared_log = false;
                 if games.is_none() {
@@ -334,6 +654,8 @@ impl App {
                 self.operation.set_force_new_full_backups(repair);
 
                 if !preview && let Err(e) = prepare_backup_target(&self.config.backup.path) {
+                    #[cfg(windows)]
+                    self.fail_background_backup(&e);
                     self.go_idle();
                     return self.show_error(e);
                 }
@@ -570,6 +892,11 @@ impl App {
                 self.progress.step();
                 let full = self.operation.full();
 
+                #[cfg(windows)]
+                if let (Some(run), Some(scan)) = (&mut self.background_backup, &scan_info) {
+                    run.scanned(scan, backup_info.as_ref());
+                }
+
                 if let Some(mut scan_info) = scan_info {
                     log::trace!(
                         "step {} / {}: {}",
@@ -736,6 +1063,10 @@ impl App {
             RestorePhase::Start { preview, mut games } => {
                 if !self.operation.idle() {
                     return Task::none();
+                }
+                #[cfg(windows)]
+                if !self.save_pending(true) {
+                    return self.show_error(Error::SomeEntriesFailed);
                 }
 
                 let path = self.config.restore.path.clone();
@@ -1361,9 +1692,17 @@ impl App {
         })
     }
 
-    pub fn new(flags: Flags) -> (Self, Task<Message>) {
+    pub fn new(
+        flags: Flags,
+        #[cfg(windows)] background_config: Result<background::Config, String>,
+        #[cfg(windows)] instance: Option<background::Instance>,
+    ) -> (Self, Task<Message>) {
+        #[cfg(windows)]
+        let (window, open) = iced::window::open(super::window_settings());
         let mut errors = vec![];
         let mut commands = vec![
+            #[cfg(windows)]
+            open.map(|_| Message::Ignore),
             iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::TEXT_DATA)).map(|_| Message::Ignore),
             iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::ICONS_DATA)).map(|_| Message::Ignore),
             iced::window::oldest().and_then(iced::window::gain_focus),
@@ -1381,6 +1720,22 @@ impl App {
                 Config::default()
             }
         };
+        #[cfg(windows)]
+        let background_settings = match background_config {
+            Ok(config) => background::Settings {
+                config,
+                ..Default::default()
+            },
+            Err(why) => {
+                errors.push(Error::ConfigInvalid { why });
+                background::Settings::default()
+            }
+        };
+        #[cfg(windows)]
+        let background_config = background_settings
+            .config
+            .enabled
+            .then(|| background_settings.config.clone());
         let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
         TRANSLATOR.set_language(config.language);
 
@@ -1474,26 +1829,150 @@ impl App {
                 flags,
                 screen,
                 pending_save,
+                #[cfg(windows)]
+                background_config,
+                #[cfg(windows)]
+                background_instance: instance,
+                #[cfg(windows)]
+                background_settings,
+                #[cfg(windows)]
+                window: Some(window),
                 ..Self::default()
             },
             Task::batch(commands),
         )
     }
 
-    pub fn title(&self) -> String {
+    pub fn title(&self, #[cfg(windows)] window: iced::window::Id) -> String {
+        #[cfg(windows)]
+        if self.background_settings_window == Some(window) {
+            return TRANSLATOR.automatic_backup_text("automatic-backup-window-title");
+        }
         TRANSLATOR.window_title()
     }
 
-    pub fn theme(&self) -> crate::gui::style::Theme {
+    pub fn theme(&self, #[cfg(windows)] _window: iced::window::Id) -> crate::gui::style::Theme {
         crate::gui::style::Theme::from(self.config.theme)
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Ignore => Task::none(),
+            #[cfg(windows)]
+            Message::WindowOpened(id) => {
+                if self.background_settings_window == Some(id) {
+                    return Task::none();
+                }
+                self.window = Some(id);
+                if let Some(config) = self.background_config.take() {
+                    match background::Background::new(config, self.background_instance.take()) {
+                        Ok(background) => {
+                            self.background = Some(background);
+                        }
+                        Err(why) => return self.show_error(Error::ConfigInvalid { why }),
+                    }
+                }
+                Task::none()
+            }
+            #[cfg(windows)]
+            Message::CloseWindow(id) => {
+                if self.background_settings_window == Some(id) {
+                    self.background_settings_window = None;
+                    return iced::window::close(id);
+                }
+                if self.background.is_some() && !self.exiting {
+                    if !self.save_pending(true) {
+                        return self.show_error(Error::SomeEntriesFailed);
+                    }
+                    self.hidden = true;
+                    self.hide_window(id)
+                } else {
+                    self.update(Message::Exit { user: true })
+                }
+            }
+            #[cfg(windows)]
+            Message::BackgroundTick => self.background_tick(),
+            #[cfg(windows)]
+            Message::BackgroundEdit(edit) => self.edit_background(edit),
+            #[cfg(windows)]
+            Message::OpenBackgroundSettings => self.open_background_settings(),
+            #[cfg(not(windows))]
+            Message::OpenBackgroundSettings => Task::none(),
+            #[cfg(windows)]
+            Message::BackgroundPolled(revision, result) => {
+                if revision != self.background_revision {
+                    return Task::none();
+                }
+                let Some(background) = self.background.as_mut() else {
+                    return Task::none();
+                };
+                background.polling = false;
+                if background.paused || self.exiting {
+                    return Task::none();
+                }
+                let (config, running) = match result {
+                    Ok(result) => result,
+                    Err(why) => {
+                        background.set_paused(true);
+                        return self.show_error(Error::ConfigInvalid { why });
+                    }
+                };
+                self.background_settings.config = config.clone();
+                if !config.enabled {
+                    self.background = None;
+                    log::info!("Background monitoring disabled");
+                    return if self.hidden { self.show_window() } else { Task::none() };
+                }
+                if background.config != config {
+                    background.monitor.reconfigure(&background.config, &config);
+                    background.config = config;
+                    log::info!("Background configuration reloaded");
+                }
+                background
+                    .monitor
+                    .observe_games(&background.config, &running, Instant::now());
+                if self.operation.idle()
+                    && self.modals.is_empty()
+                    && !self.updating_manifest
+                    && self.rclone_monitor_sender.is_some()
+                    && let Some(game) = background.monitor.take_ready()
+                {
+                    self.background_backup = Some(background::BackupRun::new(game.clone()));
+                    if !self.manifest.extended.0.contains_key(&game) {
+                        self.fail_background_backup(&Error::GameIsUnrecognized);
+                        return self.show_error(Error::CliUnrecognizedGames { games: vec![game] });
+                    }
+                    log::info!("Backing up {game} after its processes closed");
+                    match background.notify_backup_start(&game) {
+                        Ok(()) => log::info!("Windows backup notification submitted for {game}"),
+                        Err(why) => log::warn!("{why}: {game}"),
+                    }
+                    self.handle_backup(BackupPhase::Start {
+                        preview: false,
+                        repair: false,
+                        jump: false,
+                        games: Some(GameSelection::Single { game }),
+                    })
+                } else {
+                    Task::none()
+                }
+            }
             Message::CloseModal => self.close_modal(),
             Message::Exit { user } => {
+                #[cfg(windows)]
+                if !user && !self.exiting {
+                    return Task::none();
+                }
                 if self.operation.idle() || (user && self.exiting) {
+                    #[cfg(windows)]
+                    if !self.save_pending(true)
+                        || self.pending_save.keys().any(|item| matches!(item, SaveKind::Backup(_)))
+                    {
+                        self.exiting = false;
+                        self.close_specific_modal_alt(modal::Kind::Exiting);
+                        return self.show_error(Error::SomeEntriesFailed);
+                    }
+                    #[cfg(not(windows))]
                     self.save();
                     std::process::exit(0)
                 } else {
@@ -1504,6 +1983,16 @@ impl App {
             Message::Save => {
                 self.save();
                 Task::none()
+            }
+            #[cfg(windows)]
+            Message::DiscardBackupMetadata(game) => {
+                self.restore_screen.log.discard_metadata_edits(&game);
+                self.pending_save.remove(&SaveKind::Backup(game.clone()));
+                self.timed_notification = None;
+                self.handle_restore(RestorePhase::Start {
+                    preview: true,
+                    games: Some(GameSelection::single(game)),
+                })
             }
             Message::UpdateTime => {
                 self.progress.update_time();
@@ -2334,12 +2823,25 @@ impl App {
                 Message::browsed_dir(subject, choice.map(|x| x.path().to_path_buf()))
             }),
             Message::BrowseFile(subject) => Task::future(async move {
-                let choice = async move { rfd::AsyncFileDialog::new().pick_file().await }.await;
+                let dialog = rfd::AsyncFileDialog::new();
+                #[cfg(windows)]
+                let dialog = if let BrowseFileSubject::BackgroundExecutable(name) = &subject {
+                    dialog
+                        .set_title(TRANSLATOR.automatic_backup_game("automatic-backup-choose-executable-for", name))
+                        .add_filter("Game executable", &["exe"])
+                } else {
+                    dialog
+                };
+                let choice = dialog.pick_file().await;
 
                 Message::browsed_file(subject, choice.map(|x| x.path().to_path_buf()))
             }),
             Message::SelectedFile(subject, path) => {
                 match subject {
+                    #[cfg(windows)]
+                    BrowseFileSubject::BackgroundExecutable(name) => {
+                        return self.edit_background(background::Edit::AddExecutable(name, path));
+                    }
                     BrowseFileSubject::RcloneExecutable => {
                         self.text_histories.rclone_executable.push(path.raw());
                         self.config.apps.rclone.path = path;
@@ -2456,6 +2958,20 @@ impl App {
             }
             Message::OpenFileSubject(subject) => {
                 let path = match subject {
+                    #[cfg(windows)]
+                    BrowseFileSubject::BackgroundExecutable(name) => {
+                        let Some(path) = self
+                            .background_settings
+                            .config
+                            .games
+                            .iter()
+                            .find(|game| game.name == name)
+                            .and_then(|game| game.executables.first())
+                        else {
+                            return Task::none();
+                        };
+                        path.clone()
+                    }
                     BrowseFileSubject::RcloneExecutable => self.config.apps.rclone.path.clone(),
                     BrowseFileSubject::RootLutrisDatabase(i) => {
                         let Root::Lutris(root) = &self.config.roots[i] else {
@@ -2870,6 +3386,11 @@ impl App {
                         ]);
                     }
                     rclone_monitor::Event::Cancelled => {
+                        #[cfg(windows)]
+                        if self.background_backup.is_some() {
+                            self.operation_should_cancel
+                                .store(true, std::sync::atomic::Ordering::Relaxed);
+                        }
                         self.go_idle();
                         return self.close_specific_modal(modal::Kind::ConfirmCloudSync);
                     }
@@ -2992,11 +3513,21 @@ impl App {
         let mut subscriptions = vec![
             iced::event::listen_with(|event, _status, _window| match event {
                 iced::Event::Keyboard(event) => Some(Message::KeyboardEvent(event)),
+                #[cfg(windows)]
+                iced::Event::Window(iced::window::Event::Opened { .. }) => Some(Message::WindowOpened(_window)),
+                #[cfg(windows)]
+                iced::Event::Window(iced::window::Event::CloseRequested) => Some(Message::CloseWindow(_window)),
+                #[cfg(not(windows))]
                 iced::Event::Window(iced::window::Event::CloseRequested) => Some(Message::Exit { user: true }),
                 _ => None,
             }),
             rclone_monitor::run().map(Message::RcloneMonitor),
         ];
+
+        #[cfg(windows)]
+        if self.background.is_some() {
+            subscriptions.push(iced::time::every(Duration::from_millis(200)).map(|_| Message::BackgroundTick));
+        }
 
         if self.timed_notification.is_some() {
             subscriptions.push(iced::time::every(Duration::from_millis(250)).map(|_| Message::PruneNotifications));
@@ -3027,7 +3558,28 @@ impl App {
         iced::Subscription::batch(subscriptions)
     }
 
-    pub fn view(&self) -> Element {
+    pub fn view(&self, #[cfg(windows)] window: iced::window::Id) -> Element {
+        #[cfg(windows)]
+        if self.background_settings_window == Some(window) {
+            let content = self.background_settings.view(
+                &self.backup_screen.log,
+                self.background.as_ref().is_some_and(|background| background.paused),
+            );
+            return Stack::new()
+                .push(
+                    Container::new(super::widget::Scrollable::new(Container::new(content).padding(15)))
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .class(style::Container::Primary),
+                )
+                .push(
+                    self.modals
+                        .last()
+                        .filter(|modal| matches!(modal.kind(), modal::Kind::Error | modal::Kind::Errors))
+                        .map(|modal| modal.view(&self.config, &self.text_histories, &self.operation)),
+                )
+                .into();
+        }
         let content = Column::new()
             .align_x(Alignment::Center)
             .push(
@@ -3176,6 +3728,250 @@ mod tests {
                 ScanKind::Restore => &app.restore_screen.log,
             };
             assert!(!log.is_filtered());
+        }
+    }
+    #[cfg(windows)]
+    mod automatic_backup_tests {
+        use super::*;
+        use crate::{
+            gui::game_list::GameListEntry,
+            scan::{ScanInfo, layout::GameLayout},
+        };
+
+        #[test]
+        fn automatic_backup_uses_backup_scan_results() {
+            let mut app = App::default();
+            app.operation = Operation::new_backup(Finality::Final, Some(GameSelection::single("Example".into())));
+            app.operation_steps_active = 2;
+            app.background_backup = Some(background::BackupRun::new("Example".into()));
+            let scan = ScanInfo {
+                game_name: "Example".into(),
+                found_files: HashMap::from([(
+                    StrictPath::new("save.dat"),
+                    crate::scan::ScannedFile {
+                        change: crate::scan::ScanChange::New,
+                        ..Default::default()
+                    },
+                )]),
+                ..Default::default()
+            };
+            let _ = app.handle_backup(BackupPhase::GameScanned {
+                scan_info: Some(scan),
+                backup_info: Some(crate::scan::BackupInfo::default()),
+            });
+            assert!(matches!(
+                app.background_backup.as_ref().unwrap().result,
+                background::BackupResult::Saved
+            ));
+        }
+
+        #[test]
+        fn automatic_backup_finishes_once_and_manual_backups_do_not_notify() {
+            let mut app = App::default();
+            assert!(app.finish_background_backup().is_none());
+            app.background_backup = Some(background::BackupRun::new("Example".into()));
+            app.background_backup.as_mut().unwrap().result = background::BackupResult::Saved;
+            let notice = app.finish_background_backup().unwrap();
+            assert_eq!(notice.title, "Automatic backup complete");
+            assert!(app.finish_background_backup().is_none());
+        }
+
+        fn note_editor() -> (tempfile::TempDir, App, StrictPath) {
+            let temp = tempfile::tempdir().unwrap();
+            let root = StrictPath::new(temp.path().to_string_lossy().into_owned());
+            let file = root.joined("game3/mapping.yaml");
+            file.create_parent_dir().unwrap();
+            file.write_with_content(include_str!("../../tests/backup/game3-renamed/mapping.yaml"))
+                .unwrap();
+            root.joined("game3/registry.yaml")
+                .write_with_content(include_str!("../../tests/backup/game3-renamed/registry.yaml"))
+                .unwrap();
+            let layout = GameLayout::load(root.joined("game3")).unwrap();
+            let backup = layout.restorable_backups_flattened().pop().unwrap();
+            let mut app = App {
+                screen: Screen::Restore,
+                ..Default::default()
+            };
+            app.config.backup.path = root.clone();
+            app.config.restore.path = root;
+            app.restore_screen.log.entries.push(GameListEntry {
+                scan_info: ScanInfo {
+                    game_name: "game3".into(),
+                    backup: Some(backup),
+                    ..Default::default()
+                },
+                game_layout: Some(layout),
+                comment_editor: Some(Default::default()),
+                ..Default::default()
+            });
+            (temp, app, file)
+        }
+
+        #[test]
+        fn leaving_restore_does_not_flush_notes_or_start_cloud_sync() {
+            let (_temp, mut app, file) = note_editor();
+            app.config.cloud.synchronize = true;
+            assert!(app.restore_screen.log.set_comment("game3", "keep this backup".into()));
+            app.save_backup("game3");
+            assert!(!file.try_read().unwrap().contains("keep this backup"));
+            let _ = app.switch_screen(Screen::Backup);
+            assert!(app.operation.idle());
+            assert!(app.modals.is_empty());
+            assert!(app.pending_save.contains_key(&SaveKind::Backup("game3".into())));
+            assert!(!file.try_read().unwrap().contains("keep this backup"));
+            assert!(app.save_pending(true));
+            assert!(file.try_read().unwrap().contains("keep this backup"));
+            assert!(app.pending_save.is_empty());
+        }
+
+        #[test]
+        fn pending_note_does_not_add_cloud_errors_to_another_games_backup() {
+            let (_temp, mut app, file) = note_editor();
+            app.config.cloud.synchronize = true;
+            app.config.cloud.remote = None;
+            assert!(app.restore_screen.log.set_comment("game3", "local note".into()));
+            app.save_backup("game3");
+            let games = GameSelection::single("another game".into());
+
+            let _ = app.handle_backup(BackupPhase::Start {
+                preview: false,
+                repair: false,
+                jump: false,
+                games: Some(games.clone()),
+            });
+
+            assert!(matches!(app.operation, Operation::Backup { .. }));
+            assert_eq!(app.operation.games(), Some(&games));
+            assert!(app.operation.errors().unwrap().is_empty());
+            assert!(file.try_read().unwrap().contains("local note"));
+        }
+
+        #[test]
+        fn local_lock_edits_still_save_without_cloud_sync() {
+            let (_temp, mut app, file) = note_editor();
+            app.config.cloud.synchronize = true;
+            let _ = app.update(Message::GameAction {
+                action: GameAction::Lock,
+                game: "game3".into(),
+            });
+            assert!(app.operation.idle());
+            assert!(app.save_pending(true));
+            let layout = GameLayout::load(file.popped()).unwrap();
+            assert!(layout.restorable_backups_flattened().last().unwrap().locked());
+        }
+
+        #[test]
+        fn metadata_edits_wait_until_backup_finishes() {
+            let (_temp, mut app, file) = note_editor();
+            assert!(app.restore_screen.log.set_comment("game3", "pending note".into()));
+            app.save_backup("game3");
+            app.operation = Operation::new_backup(Finality::Final, Some(GameSelection::single("game3".into())));
+            assert!(app.save_pending(true));
+            assert!(app.pending_save.contains_key(&SaveKind::Backup("game3".into())));
+            assert!(!file.try_read().unwrap().contains("pending note"));
+            app.go_idle();
+            assert!(app.save_pending(true));
+            assert!(file.try_read().unwrap().contains("pending note"));
+        }
+
+        #[test]
+        fn metadata_edits_preserve_newer_backups() {
+            let (_temp, mut app, file) = note_editor();
+            app.config.cloud.synchronize = false;
+            assert!(app.restore_screen.log.set_comment("game3", "keep this note".into()));
+            app.save_backup("game3");
+            let newer = format!(
+                "{}\n  - name: newer-backup\n    when: \"2026-11-01T00:00:00Z\"\n    files: {{}}\n    registry: {{hash: null}}\n    children: []\n",
+                file.try_read().unwrap()
+            );
+            file.write_with_content(&newer).unwrap();
+            assert!(app.save_pending(true));
+            let saved = file.try_read().unwrap();
+            assert!(saved.contains("newer-backup"));
+            assert!(saved.contains("keep this note"));
+        }
+
+        #[test]
+        fn failed_metadata_save_while_exiting_unblocks_the_window() {
+            let (_temp, mut app, file) = note_editor();
+            assert!(app.restore_screen.log.set_comment("game3", "unsaved note".into()));
+            app.save_backup("game3");
+            file.write_with_content("name: game3\ndrives: {}\nbackups: []\n")
+                .unwrap();
+            app.exiting = true;
+            app.modals.push(Modal::Exiting);
+            app.go_idle();
+            assert!(!app.exiting);
+            assert!(app.pending_save.contains_key(&SaveKind::Backup("game3".into())));
+            assert!(matches!(app.modals.last(), Some(Modal::Error { .. })));
+            assert!(!app.modals.iter().any(|modal| modal.kind() == modal::Kind::Exiting));
+            assert!(app.timed_notification.is_some());
+        }
+
+        #[test]
+        fn stale_metadata_can_be_discarded_before_refreshing() {
+            let (_temp, mut app, file) = note_editor();
+            app.config.cloud.synchronize = false;
+            assert!(app.restore_screen.log.set_comment("game3", "unsaved note".into()));
+            app.save_backup("game3");
+            let replaced = "name: game3\ndrives: {}\nbackups: []\n";
+            file.write_with_content(replaced).unwrap();
+            assert!(!app.save_pending(true));
+            assert!(app.pending_save.contains_key(&SaveKind::Backup("game3".into())));
+            assert_eq!(file.try_read().unwrap(), replaced);
+            let _ = app.update(Message::DiscardBackupMetadata("game3".into()));
+            assert!(app.pending_save.is_empty());
+            assert!(matches!(app.operation, Operation::Restore { .. }));
+            assert_eq!(file.try_read().unwrap(), replaced);
+        }
+
+        #[test]
+        fn background_selection_rejects_games_not_discovered_in_backup() {
+            let mut app = App::default();
+            let _ = app.update(Message::BackgroundEdit(background::Edit::Search("Example game".into())));
+            let _ = app.update(Message::SelectedFile(
+                BrowseFileSubject::BackgroundExecutable("Example game".into()),
+                StrictPath::new("C:/games/example.exe"),
+            ));
+            assert_eq!(app.background_settings.search, "Example game");
+            assert!(app.background_settings.config.games.is_empty());
+            assert!(!app.modals.is_empty());
+        }
+
+        #[test]
+        fn executable_picker_keeps_the_chosen_game_and_cancel_changes_nothing() {
+            let path = std::env::current_exe().unwrap();
+            let chosen = "First game".to_string();
+            let message = Message::browsed_file(
+                BrowseFileSubject::BackgroundExecutable(chosen.clone()),
+                Some(path.clone()),
+            );
+            assert!(matches!(message, Message::SelectedFile(
+                BrowseFileSubject::BackgroundExecutable(name), executable
+            ) if name == chosen && executable == StrictPath::from(path)));
+            let mut app = App::default();
+            let _ = app.update(Message::browsed_file(
+                BrowseFileSubject::BackgroundExecutable(chosen),
+                None,
+            ));
+            assert!(app.background_settings.config.games.is_empty());
+            assert!(app.modals.is_empty());
+        }
+        #[test]
+        fn settings_window_closes_without_closing_the_main_window() {
+            let main = iced::window::Id::unique();
+            let settings = iced::window::Id::unique();
+            let mut app = App {
+                window: Some(main),
+                background_settings_window: Some(settings),
+                ..Default::default()
+            };
+            let _ = app.update(Message::WindowOpened(settings));
+            assert_eq!(app.window, Some(main));
+            let _ = app.update(Message::CloseWindow(settings));
+            assert_eq!(app.window, Some(main));
+            assert!(app.background_settings_window.is_none());
+            assert!(!app.exiting);
         }
     }
 }

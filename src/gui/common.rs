@@ -106,10 +106,26 @@ pub enum ValidatePhase {
 #[derive(Debug, Clone)]
 pub enum Message {
     Ignore,
+    #[cfg(windows)]
+    WindowOpened(iced::window::Id),
+    #[cfg(windows)]
+    CloseWindow(iced::window::Id),
+    #[cfg(windows)]
+    BackgroundTick,
+    #[cfg(windows)]
+    BackgroundPolled(
+        u64,
+        Result<(super::background::Config, std::collections::HashSet<String>), String>,
+    ),
+    #[cfg(windows)]
+    BackgroundEdit(super::background::Edit),
+    OpenBackgroundSettings,
     Exit {
         user: bool,
     },
     Save,
+    #[cfg(windows)]
+    DiscardBackupMetadata(String),
     CloseModal,
     UpdateTime,
     PruneNotifications,
@@ -695,6 +711,8 @@ pub enum BrowseSubject {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BrowseFileSubject {
+    #[cfg(windows)]
+    BackgroundExecutable(String),
     RcloneExecutable,
     RootLutrisDatabase(usize),
     SecondaryManifest(usize),

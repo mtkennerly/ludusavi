@@ -85,6 +85,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+      - if: ${{ matrix.os == 'windows-latest' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -100,6 +104,11 @@ jobs:
         run: |
           cd tests/root3/game5 && ln -s data data-symlink
       - run: cargo test
+      - if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          cargo build --locked
+          rustc tests/process-helper.rs -o "$env:RUNNER_TEMP/ludusavi-test-game.exe"
+          python tests/background-app.py target/debug/ludusavi.exe "$env:RUNNER_TEMP/ludusavi-test-game.exe"
 
   lint:
     strategy:
