@@ -7,10 +7,18 @@ use crate::gui::{
     widget::{Container, text},
 };
 
+#[cfg(windows)]
+use crate::gui::{
+    common::Message,
+    widget::{Button, Row},
+};
+
 pub struct Notification {
     text: String,
     created: Instant,
     expires: Option<u64>,
+    #[cfg(windows)]
+    action: Option<(String, Message)>,
 }
 
 impl Notification {
@@ -19,11 +27,19 @@ impl Notification {
             text,
             created: Instant::now(),
             expires: None,
+            #[cfg(windows)]
+            action: None,
         }
     }
 
     pub fn expires(mut self, expires: u64) -> Self {
         self.expires = Some(expires);
+        self
+    }
+
+    #[cfg(windows)]
+    pub fn action(mut self, label: &str, message: Message) -> Self {
+        self.action = Some((label.into(), message));
         self
     }
 
@@ -34,6 +50,30 @@ impl Notification {
         }
     }
 
+    #[cfg(windows)]
+    pub fn view(&self) -> Container {
+        let mut content = Row::new()
+            .spacing(10)
+            .align_y(iced::Alignment::Center)
+            .push(text(self.text.clone()));
+        if let Some((label, message)) = &self.action {
+            content = content.push(
+                Button::new(text(label.clone()))
+                    .padding(3)
+                    .class(style::Button::Primary)
+                    .on_press(message.clone()),
+            );
+        }
+        Container::new(
+            Container::new(content)
+                .padding([3, 40])
+                .align_x(alignment::Horizontal::Center)
+                .align_y(alignment::Vertical::Center)
+                .class(style::Container::Notification),
+        )
+        .padding(padding::bottom(5))
+    }
+    #[cfg(not(windows))]
     pub fn view(&self) -> Container {
         Container::new(
             Container::new(text(self.text.clone()))

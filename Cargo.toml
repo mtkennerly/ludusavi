@@ -25,6 +25,7 @@ app = [
     "dep:indicatif",
     "dep:rfd",
     "dep:signal-hook",
+    "dep:tray-icon",
 ]
 
 [dependencies]
@@ -76,6 +77,7 @@ zip = "9.0.0"
 
 [target.'cfg(windows)'.dependencies]
 known-folders = "1.2.0"
+tray-icon = { version = "0.26.1", default-features = false, optional = true }
 winreg = "0.52.0"
 windows = { version = "0.60.0", features = ["Win32_System_Console", "Win32_System_Registry", "Win32_System_Threading", "Win32_Storage_FileSystem", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
