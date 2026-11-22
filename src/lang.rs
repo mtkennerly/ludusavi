@@ -406,6 +406,7 @@ impl Translator {
             Error::GameIsUnrecognized => self.game_is_unrecognized(),
             Error::SomeEntriesFailed => self.some_entries_failed(),
             Error::CannotPrepareBackupTarget { path } => self.cannot_prepare_backup_target(path),
+            Error::UnreadableBackupMapping { path } => self.unreadable_backup_mapping(path),
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
             Error::RegistryIssue => self.registry_issue(),
             Error::UnableToOpenDir(path) => self.unable_to_open_dir(path),
@@ -874,6 +875,12 @@ impl Translator {
         let mut args = FluentArgs::new();
         args.set(PATH, target.render());
         translate_args("cannot-prepare-backup-target", &args)
+    }
+
+    pub fn unreadable_backup_mapping(&self, path: &StrictPath) -> String {
+        let mut args = FluentArgs::new();
+        args.set(PATH, path.render());
+        translate_args("unreadable-backup-mapping", &args)
     }
 
     pub fn restoration_source_is_invalid(&self, source: &StrictPath) -> String {

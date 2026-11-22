@@ -109,6 +109,9 @@ pub enum Error {
     CannotPrepareBackupTarget {
         path: StrictPath,
     },
+    UnreadableBackupMapping {
+        path: StrictPath,
+    },
     RestorationSourceInvalid {
         path: StrictPath,
     },
