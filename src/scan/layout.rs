@@ -1601,6 +1601,22 @@ impl GameLayout {
         }
 
         log::trace!("[{}] preparing for backup", scan.game_name);
+        // If the mapping exists but can't be read, then `self.mapping` is a blank placeholder
+        // rather than the game's real backup history. Continuing would prune the backups it
+        // doesn't know about, so refuse instead.
+        // See: https://github.com/mtkennerly/ludusavi/issues/669
+        if let Some(mapping_file) = self.unreadable_mapping_over_backups() {
+            log::error!(
+                "[{}] refusing to back up with an unreadable mapping: {:?}",
+                scan.game_name,
+                mapping_file
+            );
+            return Some(BackupInfo::total_failure(
+                scan,
+                BackupError::App(Error::UnreadableBackupMapping { path: mapping_file }),
+            ));
+        }
+
         if let Err(e) = prepare_backup_target(&self.path) {
             log::error!(
                 "[{}] failed to prepare backup target: {:?} | {e:?}",
@@ -1959,6 +1975,28 @@ impl GameLayout {
 
     fn mapping_file(path: &StrictPath) -> StrictPath {
         path.joined("mapping.yaml")
+    }
+
+    /// If the mapping file exists but can't be loaded, then `self.mapping` is a blank
+    /// placeholder rather than the game's real backup history. Pruning against that
+    /// placeholder would delete every backup it doesn't know about, so this reports the
+    /// mapping file when the folder holds anything that pruning would remove.
+    ///
+    /// See: https://github.com/mtkennerly/ludusavi/issues/669
+    fn unreadable_mapping_over_backups(&self) -> Option<StrictPath> {
+        let mapping_file = Self::mapping_file(&self.path);
+        if !mapping_file.is_file() || IndividualMapping::load(&mapping_file).is_ok() {
+            // Either there's no history yet (a new game) or it's intact.
+            return None;
+        }
+
+        let holds_backups = self
+            .mapping
+            .irrelevant_parents(&self.path)
+            .into_iter()
+            .any(|x| x.is_file() || x.is_dir());
+
+        holds_backups.then_some(mapping_file)
     }
 
     fn find_irrelevant_backup_files(&self, backup: &str, relevant_files: &[StrictPath]) -> Vec<StrictPath> {
@@ -4195,6 +4233,125 @@ children: []
             let full = FullBackup::default();
             let yaml = serde_yaml::to_string(&full).unwrap();
             assert!(!yaml.contains("semantics"), "default semantics should be skipped");
+        }
+    }
+
+    mod unreadable_mapping {
+        use pretty_assertions::assert_eq;
+
+        use super::*;
+
+        fn backup_folder(tmp: &tempfile::TempDir, backups: &[&str], mapping: Option<&str>) -> StrictPath {
+            let path = StrictPath::new(tmp.path().to_string_lossy().to_string()).joined("game");
+            path.create_dirs().unwrap();
+            for backup in backups {
+                path.joined(backup).create_dirs().unwrap();
+            }
+            if let Some(mapping) = mapping {
+                path.joined("mapping.yaml").write_with_content(mapping).unwrap();
+            }
+            path
+        }
+
+        fn corrupt_mapping() -> &'static str {
+            // Truncated in the middle of a value, like a partial write would leave it:
+            "name: game\ndrives:\n  drive-X: 'X:'\nbackups:\n  - name: backup-20260101T000000Z\n    wh"
+        }
+
+        fn intact_mapping() -> &'static str {
+            "name: game\ndrives:\n  drive-X: 'X:'\nbackups:\n  - name: backup-20260101T000000Z\n    when: 2026-01-01T00:00:00Z\n    files: {}\n    children: []\n"
+        }
+
+        fn layout(path: StrictPath) -> GameLayout {
+            // This is what `BackupLayout::game_layout` falls back to when the mapping can't be loaded.
+            GameLayout {
+                path,
+                mapping: IndividualMapping::new("game".to_string()),
+            }
+        }
+
+        fn scan() -> ScanInfo {
+            ScanInfo {
+                game_name: "game".to_string(),
+                found_files: hash_map! {
+                    StrictPath::new("X:/saves/save.dat"): ScannedFile::with_change(1, "h", ScanChange::New),
+                },
+                ..Default::default()
+            }
+        }
+
+        #[test]
+        fn refuses_to_back_up_over_an_unreadable_mapping() {
+            let tmp = tempfile::tempdir().unwrap();
+            let path = backup_folder(&tmp, &["backup-20260101T000000Z"], Some(corrupt_mapping()));
+
+            let backup_info = layout(path.clone())
+                .back_up(
+                    &scan(),
+                    &chrono::DateTime::<chrono::Utc>::default(),
+                    &BackupFormats::default(),
+                    Retention::default(),
+                    false,
+                )
+                .unwrap();
+
+            assert!(!backup_info.successful());
+            let message = backup_info.failed_files.values().next().unwrap().message();
+            assert!(
+                message.starts_with("Error: Unable to read this game's backup history"),
+                "unexpected message: {message}"
+            );
+            assert!(message.contains("mapping.yaml"), "unexpected message: {message}");
+
+            // Nothing was deleted and no new backup was recorded:
+            assert!(path.joined("backup-20260101T000000Z").is_dir());
+            assert_eq!(
+                Some(corrupt_mapping().to_string()),
+                path.joined("mapping.yaml").try_read().ok()
+            );
+        }
+
+        #[test]
+        fn refuses_to_back_up_over_a_legacy_backup_with_an_unreadable_mapping() {
+            let tmp = tempfile::tempdir().unwrap();
+            let path = backup_folder(&tmp, &["drive-X"], Some(corrupt_mapping()));
+
+            let backup_info = layout(path.clone())
+                .back_up(
+                    &scan(),
+                    &chrono::DateTime::<chrono::Utc>::default(),
+                    &BackupFormats::default(),
+                    Retention::default(),
+                    false,
+                )
+                .unwrap();
+
+            assert!(!backup_info.successful());
+            assert!(path.joined("drive-X").is_dir());
+        }
+
+        #[test]
+        fn ignores_an_unreadable_mapping_without_any_backups() {
+            let tmp = tempfile::tempdir().unwrap();
+            let path = backup_folder(&tmp, &[], Some(corrupt_mapping()));
+
+            assert_eq!(None, layout(path).unreadable_mapping_over_backups());
+        }
+
+        #[test]
+        fn ignores_an_intact_mapping() {
+            let tmp = tempfile::tempdir().unwrap();
+            let path = backup_folder(&tmp, &["backup-20260101T000000Z"], Some(intact_mapping()));
+
+            assert_eq!(None, layout(path).unreadable_mapping_over_backups());
+        }
+
+        #[test]
+        fn ignores_a_missing_mapping() {
+            let tmp = tempfile::tempdir().unwrap();
+            let path = backup_folder(&tmp, &["drive-X"], None);
+
+            assert_eq!(None, layout(path).unreadable_mapping_over_backups());
         }
     }
 }

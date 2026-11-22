@@ -23,6 +23,12 @@
   * CLI: In `--api` mode, the `backup` command now outputs a `tags` field based on manifest tags.
     ([Contributed by ChrisJr404](https://github.com/mtkennerly/ludusavi/pull/645))
 * Fixed:
+  * If a game's backup history file (`mapping.yaml`) could not be read or parsed,
+    the next backup of that game treated the existing backups as leftovers and deleted them,
+    including locked ones, then reported success.
+    Ludusavi now refuses to back up that game until the file is repaired or replaced,
+    so the existing backups are left alone.
+    ([#669](https://github.com/mtkennerly/ludusavi/issues/669))
   * GUI: The duplicates filter can now be cleared from the status row,
     even when all matching games are hidden or their conflicts are resolved.
     ([Contributed by Zhong-fan](https://github.com/mtkennerly/ludusavi/pull/655))
