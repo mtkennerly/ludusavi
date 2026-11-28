@@ -182,6 +182,18 @@ unsafe fn detach_console(debug: bool) {
     }
 }
 
+#[cfg(any(target_os = "windows", test))]
+fn should_detach_console(sub: Option<&cli::parse::Subcommand>, env_debug: bool) -> bool {
+    if env_debug {
+        return false;
+    }
+    match sub {
+        None | Some(cli::parse::Subcommand::Gui { .. }) => true,
+        Some(cli::parse::Subcommand::Wrap { gui, .. }) => *gui,
+        Some(_) => false,
+    }
+}
+
 fn main() {
     let mut failed = false;
     let args = cli::parse();
@@ -219,15 +231,15 @@ fn main() {
         }
     };
 
+    #[cfg(target_os = "windows")]
+    if should_detach_console(args.sub.as_ref(), std::env::var_os(crate::prelude::ENV_DEBUG).is_some()) {
+        unsafe {
+            detach_console(debug);
+        }
+    }
+
     match args.sub {
         None => {
-            #[cfg(target_os = "windows")]
-            if std::env::var(crate::prelude::ENV_DEBUG).is_err() {
-                unsafe {
-                    detach_console(debug);
-                }
-            }
-
             let flags = Flags {
                 update_manifest: !args.no_manifest_update,
                 custom_game: None,
@@ -235,13 +247,6 @@ fn main() {
             gui::run(flags);
         }
         Some(cli::parse::Subcommand::Gui { custom_game }) => {
-            #[cfg(target_os = "windows")]
-            if std::env::var(crate::prelude::ENV_DEBUG).is_err() {
-                unsafe {
-                    detach_console(debug);
-                }
-            }
-
             let flags = Flags {
                 update_manifest: !args.no_manifest_update,
                 custom_game,
@@ -274,5 +279,112 @@ fn debug_on_exit(debug: bool) {
             eprintln!("{}", TRANSLATOR.unable_to_open_dir(&path));
             log::error!("Unable to open directory: `{:?}` - {:?}", path, e);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cli::parse::{Subcommand, WrapSubcommand};
+
+    fn wrap_subcommand(gui: bool) -> Subcommand {
+        Subcommand::Wrap {
+            name_source: WrapSubcommand {
+                infer: None,
+                name: Some("game".to_string()),
+            },
+            force: false,
+            force_backup: false,
+            force_restore: false,
+            no_backup: false,
+            no_restore: false,
+            no_force_cloud_conflict: false,
+            gui,
+            path: None,
+            format: None,
+            compression: None,
+            compression_level: None,
+            full_limit: None,
+            differential_limit: None,
+            cloud_sync: false,
+            no_cloud_sync: false,
+            ask_downgrade: false,
+            commands: vec!["game.exe".to_string()],
+        }
+    }
+
+    #[test]
+    fn should_detach_console_respects_subcommand_and_env_debug() {
+        assert!(should_detach_console(None, false));
+        assert!(!should_detach_console(None, true));
+
+        let gui = Subcommand::Gui { custom_game: None };
+        assert!(should_detach_console(Some(&gui), false));
+        assert!(!should_detach_console(Some(&gui), true));
+
+        let wrap_gui = wrap_subcommand(true);
+        assert!(should_detach_console(Some(&wrap_gui), false));
+        assert!(!should_detach_console(Some(&wrap_gui), true));
+
+        let wrap_cli = wrap_subcommand(false);
+        assert!(!should_detach_console(Some(&wrap_cli), false));
+
+        let backup_gui = Subcommand::Backup {
+            preview: false,
+            path: None,
+            force: false,
+            no_force_cloud_conflict: false,
+            wine_prefix: None,
+            api: false,
+            gui: true,
+            sort: None,
+            format: None,
+            compression: None,
+            compression_level: None,
+            full_limit: None,
+            differential_limit: None,
+            cloud_sync: false,
+            no_cloud_sync: false,
+            dump_registry: false,
+            include_disabled: false,
+            ask_downgrade: false,
+            games: vec![],
+        };
+        assert!(!should_detach_console(Some(&backup_gui), false));
+
+        let restore_gui = Subcommand::Restore {
+            preview: false,
+            path: None,
+            force: false,
+            no_force_cloud_conflict: false,
+            api: false,
+            gui: true,
+            sort: None,
+            backup: None,
+            cloud_sync: false,
+            no_cloud_sync: false,
+            dump_registry: false,
+            include_disabled: false,
+            ask_downgrade: false,
+            games: vec![],
+        };
+        assert!(!should_detach_console(Some(&restore_gui), false));
+
+        let find = Subcommand::Find {
+            api: false,
+            multiple: false,
+            path: None,
+            backup: false,
+            restore: false,
+            steam_id: None,
+            gog_id: None,
+            lutris_id: None,
+            normalized: false,
+            fuzzy: false,
+            disabled: false,
+            partial: false,
+            names: vec![],
+        };
+        assert!(!should_detach_console(Some(&find), false));
     }
 }
