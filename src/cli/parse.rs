@@ -1563,4 +1563,86 @@ mod tests {
             },
         );
     }
+
+    #[test]
+    fn accepts_cli_wrap_with_gui() {
+        let parsed = Cli::parse_from([
+            "ludusavi",
+            "wrap",
+            "--name",
+            "GAME NAME",
+            "--gui",
+            "--force",
+            "--no-restore",
+            "--",
+            r"C:\path\to\game.exe",
+        ]);
+        let expected = Cli {
+            config: None,
+            no_manifest_update: false,
+            try_manifest_update: false,
+            debug: false,
+            sub: Some(Subcommand::Wrap {
+                name_source: WrapSubcommand {
+                    infer: None,
+                    name: Some(s("GAME NAME")),
+                },
+                force: true,
+                force_backup: false,
+                force_restore: false,
+                no_backup: false,
+                no_restore: true,
+                no_force_cloud_conflict: false,
+                gui: true,
+                path: None,
+                format: None,
+                compression: None,
+                compression_level: None,
+                full_limit: None,
+                differential_limit: None,
+                cloud_sync: false,
+                no_cloud_sync: false,
+                ask_downgrade: false,
+                commands: vec![s(r"C:\path\to\game.exe")],
+            }),
+        };
+        assert_eq!(expected, parsed);
+        assert!(parsed.sub.as_ref().unwrap().gui());
+    }
+
+    #[test]
+    fn accepts_cli_wrap_without_gui() {
+        let parsed = Cli::parse_from(["ludusavi", "wrap", "--infer", "steam", "--", "game.exe", "--windowed"]);
+        let expected = Cli {
+            config: None,
+            no_manifest_update: false,
+            try_manifest_update: false,
+            debug: false,
+            sub: Some(Subcommand::Wrap {
+                name_source: WrapSubcommand {
+                    infer: Some(Launcher::Steam),
+                    name: None,
+                },
+                force: false,
+                force_backup: false,
+                force_restore: false,
+                no_backup: false,
+                no_restore: false,
+                no_force_cloud_conflict: false,
+                gui: false,
+                path: None,
+                format: None,
+                compression: None,
+                compression_level: None,
+                full_limit: None,
+                differential_limit: None,
+                cloud_sync: false,
+                no_cloud_sync: false,
+                ask_downgrade: false,
+                commands: vec![s("game.exe"), s("--windowed")],
+            }),
+        };
+        assert_eq!(expected, parsed);
+        assert!(!parsed.sub.as_ref().unwrap().gui());
+    }
 }
